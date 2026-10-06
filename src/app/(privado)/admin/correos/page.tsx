@@ -145,7 +145,7 @@ async function Historial({ ctx, sp }: { ctx: Contexto; sp: Record<string, string
   const filas = (data ?? []) as unknown as FilaCorreo[];
   const plantillas = (plantillasData ?? []) as { codigo: string; nombre: string }[];
   const detalle = detalleR.data as unknown as
-    | (FilaCorreo & {
+    | (Omit<FilaCorreo, "correo_destinatarios"> & {
         intentos: number;
         ultimo_error: string | null;
         html_final: string | null;
