@@ -65,11 +65,19 @@ export default async function PaginaFrentes({
   if (f !== "todos") consulta = consulta.eq("activo", f === "activos");
   const [desde, hasta] = rango(p);
 
-  const [{ data: filas, count }, { data: proyectosData }, { data: areasData }] = await Promise.all([
+  const [{ data: filasData, count }, { data: proyectosData }, { data: areasData }] = await Promise.all([
     consulta.range(desde, hasta),
     supabase.from("proyectos").select("id, nombre, activo").order("nombre"),
     supabase.from("areas").select("id, nombre, activo").order("nombre"),
   ]);
+  const filas = (filasData ?? []) as unknown as {
+    id: string;
+    nombre: string;
+    sponsor: string | null;
+    activo: boolean;
+    proyectos: { nombre: string } | null;
+    areas: { nombre: string } | null;
+  }[];
   const proyectos = (proyectosData ?? []) as Opcion[];
   const areas = (areasData ?? []) as Opcion[];
 
@@ -140,7 +148,7 @@ export default async function PaginaFrentes({
               </tr>
             </thead>
             <tbody>
-              {(filas ?? []).map((r) => (
+              {filas.map((r) => (
                 <tr key={r.id} className={r.id === id ? "outline-2 -outline-offset-2 outline-marca" : undefined}>
                   <td>
                     <Link href={urlCon(RUTA, { ...lista, id: r.id })} className="font-medium text-oliva hover:underline">
@@ -155,7 +163,7 @@ export default async function PaginaFrentes({
                   </td>
                 </tr>
               ))}
-              {!filas?.length && (
+              {!filas.length && (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-gris-medio">
                     No hay frentes que coincidan.
