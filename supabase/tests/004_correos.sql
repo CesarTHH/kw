@@ -1,7 +1,7 @@
 -- Pruebas del módulo de correos (pgTAP).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(24);
 
 create temporary table u (clave text primary key, id uuid);
 grant select on u to authenticated;
@@ -89,17 +89,27 @@ select throws_ok($$select * from public.correos_tomar_lote(5)$$, '42501', null, 
 select throws_ok($$select public.reenviar_correo((select id from c1))$$, '42501', null, 'Contratista no puede reenviar');
 
 -- 16-19. Superadmin
+select pg_temp.reset();
+update public.correos_pendientes set estado = 'enviado' where id = (select id from c1);
 select pg_temp.como('sa');
 select ok((select count(*) from public.correos_pendientes) > 0, 'Superadmin ve el historial');
 select lives_ok($$select public.reenviar_correo((select id from c1))$$, 'Superadmin reenvía un correo');
 select is((select count(*)::int from public.correos_pendientes where reenvio_de = (select id from c1)), 1,
   'El reenvío queda enlazado al original');
+select throws_ok($$select public.reenviar_correo((select id from public.correos_pendientes where reenvio_de = (select id from c1)))$$,
+  '22023', null, 'No se reenvía un correo que sigue en cola');
 select lives_ok($$update public.plantillas_correo set asunto = 'Nuevo asunto {{ruc}}' where codigo = 'contacto'$$,
   'Superadmin edita una plantilla');
 
--- 20. Admin no edita plantillas
+-- 20. Admin no edita plantillas (aunque tenga permiso de configuración)
+select pg_temp.reset();
+insert into public.rol_permisos (rol_id, menu_codigo, acciones)
+select id, 'admin.configuracion', array['ver', 'editar'] from public.roles where codigo = 'admin'
+on conflict (rol_id, menu_codigo) do update set acciones = excluded.acciones;
 select pg_temp.como('admin');
 update public.plantillas_correo set asunto = 'hack' where codigo = 'contacto';
+select throws_ok($$update public.configuracion set valor = '"espia@x.com"' where clave = 'correo.cco_interno'$$,
+  '42501', null, 'Solo el Superadmin cambia la configuración de correos');
 select pg_temp.reset();
 select is((select asunto from public.plantillas_correo where codigo = 'contacto'), 'Nuevo asunto {{ruc}}',
   'Admin no puede editar plantillas');

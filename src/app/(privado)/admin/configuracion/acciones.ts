@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { permisoEnAccion } from "@/lib/auth";
+import { esSuperadmin, permisoEnAccion } from "@/lib/auth";
 import { claveError } from "@/lib/maestras/errores";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { correoSchema } from "@/lib/validaciones";
@@ -65,7 +65,9 @@ export async function guardarHorarios(formData: FormData) {
 }
 
 export async function guardarGeneral(formData: FormData) {
-  if (!(await permisoEnAccion("admin.configuracion", "editar"))) redirect(`${RUTA}?error=permiso`);
+  const ctx = await permisoEnAccion("admin.configuracion", "editar");
+  if (!ctx) redirect(`${RUTA}?error=permiso`);
+  const superadmin = esSuperadmin(ctx);
   const supabase = await crearClienteServidor();
   const { data: filas, error: e1 } = await supabase
     .from("configuracion")
@@ -75,6 +77,8 @@ export async function guardarGeneral(formData: FormData) {
 
   const cambios: { clave: string; valor: unknown }[] = [];
   for (const f of filas as { clave: string; valor: unknown }[]) {
+    // Remitente, copia oculta y modo de envío: solo el Superadmin (también lo exige la base de datos).
+    if (f.clave.startsWith("correo.") && !superadmin) continue;
     const c = convertir(f.valor, formData.get(f.clave));
     if (!c.ok) redirect(`${RUTA}?error=datos`);
     let valor = c.valor;

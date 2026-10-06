@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { BotonEnviar } from "@/components/BotonEnviar";
 import { Encabezado } from "@/components/Encabezado";
 import { Avisos } from "@/components/maestras/Avisos";
-import { obtenerMenu, requerirPermiso } from "@/lib/auth";
+import { esSuperadmin, obtenerMenu, requerirPermiso } from "@/lib/auth";
 import { CLAVES_EDITABLES, DIAS_ISO, ETIQUETAS_GENERAL, MODOS_CORREO, MODULOS_HORARIO } from "@/lib/configuracion";
 import { puede } from "@/lib/permisos";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
@@ -74,11 +74,12 @@ export default async function PaginaConfiguracion({
             const c = config.get(k)!;
             const meta = ETIQUETAS_GENERAL[k];
             const valor = c.valor === null || c.valor === undefined ? "" : String(c.valor);
+            const bloqueado = !editar || (k.startsWith("correo.") && !esSuperadmin(ctx));
             return (
               <label key={k} className="block">
                 <span className="etiqueta">{meta.etiqueta}</span>
                 {meta.tipo === "zona" ? (
-                  <select name={k} defaultValue={valor} disabled={!editar} className="campo">
+                  <select name={k} defaultValue={valor} disabled={bloqueado} className="campo">
                     {zonas.map((z) => (
                       <option key={z} value={z}>
                         {z}
@@ -86,7 +87,7 @@ export default async function PaginaConfiguracion({
                     ))}
                   </select>
                 ) : meta.tipo === "modo" ? (
-                  <select name={k} defaultValue={valor} disabled={!editar} className="campo">
+                  <select name={k} defaultValue={valor} disabled={bloqueado} className="campo">
                     {Object.entries(MODOS_CORREO).map(([m, t]) => (
                       <option key={m} value={m}>
                         {t}
@@ -100,7 +101,7 @@ export default async function PaginaConfiguracion({
                     min={meta.tipo === "bytes" ? 1024 : undefined}
                     defaultValue={valor}
                     maxLength={300}
-                    disabled={!editar}
+                    disabled={bloqueado}
                     className="campo"
                   />
                 )}

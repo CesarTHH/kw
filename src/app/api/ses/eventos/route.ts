@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   const tema = process.env.SES_SNS_TOPIC_ARN;
   if (!tema || !hayClaveAdmin()) return vacio(404);
 
+  if (Number(request.headers.get("content-length") ?? "0") > 256_000) return vacio(413);
   const cuerpo = await request.text();
   if (cuerpo.length > 256_000) return vacio(413);
   let mensaje: unknown;
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
     return vacio(400);
   }
   if (!esMensajeSns(mensaje) || mensaje.TopicArn !== tema) return vacio(403);
+  // Mensajes de más de 24 horas no se aceptan (evita repetir mensajes viejos capturados).
+  const antiguedad = Date.now() - Date.parse(mensaje.Timestamp);
+  if (!Number.isFinite(antiguedad) || antiguedad > 24 * 3600_000 || antiguedad < -300_000) return vacio(403);
   if (!urlSnsValida(mensaje.SigningCertURL, ".pem")) return vacio(403);
   const pem = await certificado(mensaje.SigningCertURL).catch(() => null);
   if (!pem || !firmaValida(mensaje, pem)) return vacio(403);

@@ -27,7 +27,7 @@ type Correo = {
   intentos: number;
 };
 type Destinatario = { id: string; correo: string; tipo: string; estado: string };
-type Resultado = "enviado" | "registrado" | "fallido" | "reintentar";
+type Resultado = "enviado" | "registrado" | "fallido" | "reintentar" | "detener";
 
 const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -98,15 +98,30 @@ async function enviarSes(
       return { resultado: "enviado", messageId };
     }
     const detalle = `SES ${r.status}: ${cuerpo.slice(0, 300)}`;
-    // 429 (límite de envío) y 5xx: temporales. 4xx (rechazado, no verificado…): definitivos.
-    return { resultado: r.status === 429 || r.status >= 500 ? "reintentar" : "fallido", detalle };
+    const texto = cuerpo.toLowerCase();
+    // Problemas de la cuenta o de la configuración (credenciales, remitente sin verificar,
+    // envío pausado): se detiene la ejecución y se reintenta después, sin dar por perdido el correo.
+    if (
+      r.status === 401 ||
+      r.status === 403 ||
+      /accountsuspended|sendingpaused|mailfromdomainnotverified|configurationsetdoesnotexist/.test(texto) ||
+      texto.includes(de.toLowerCase().replace(/^.*<|>$/g, ""))
+    ) {
+      return { resultado: "detener", detalle };
+    }
+    // Rechazo de ESTE destinatario (dirección inválida o no verificada en sandbox): definitivo.
+    if (r.status === 400 && (texto.includes(para.toLowerCase()) || /invalid.*address|illegal address/.test(texto))) {
+      return { resultado: "fallido", detalle };
+    }
+    // 429 (límite de envío), 5xx y cualquier otro caso: temporal.
+    return { resultado: "reintentar", detalle };
   } catch (e) {
     return { resultado: "reintentar", detalle: `Red: ${String(e).slice(0, 300)}` };
   }
 }
 
-const plantillas = new Map<string, Plantilla | null>();
-async function plantilla(codigo: string): Promise<Plantilla | null> {
+// La caché vive solo durante una ejecución: si el Superadmin edita una plantilla, el siguiente minuto ya usa la nueva.
+async function plantilla(plantillas: Map<string, Plantilla | null>, codigo: string): Promise<Plantilla | null> {
   if (!plantillas.has(codigo)) {
     const { data } = await supabase
       .from("plantillas_correo")
@@ -118,14 +133,19 @@ async function plantilla(codigo: string): Promise<Plantilla | null> {
   return plantillas.get(codigo) ?? null;
 }
 
-async function procesar(c: Correo, cfg: Awaited<ReturnType<typeof leerConfiguracion>>) {
-  const p = await plantilla(c.plantilla);
+/** Devuelve false si hay que detener la ejecución (problema de la cuenta de SES). */
+async function procesar(
+  c: Correo,
+  cfg: Awaited<ReturnType<typeof leerConfiguracion>>,
+  plantillas: Map<string, Plantilla | null>,
+): Promise<boolean> {
+  const p = await plantilla(plantillas, c.plantilla);
   if (!p) {
     await supabase
       .from("correos_pendientes")
       .update({ estado: "fallido", ultimo_error: "La plantilla no existe" })
       .eq("id", c.id);
-    return;
+    return true;
   }
   const armado = renderizar(p, c.datos ?? {}, { url_app: cfg.urlApp, correo_contacto: cfg.contacto });
   await supabase
@@ -142,6 +162,7 @@ async function procesar(c: Correo, cfg: Awaited<ReturnType<typeof leerConfigurac
   const enviar = cfg.modo === "enviar" && aws !== null && CORREO_VALIDO.test(cfg.direccion);
   const de = remitente(cfg.nombre, cfg.direccion);
   let pendientes = 0;
+  let detener = false;
   let ultimoError: string | null = null;
 
   for (const d of (dests ?? []) as Destinatario[]) {
@@ -152,11 +173,22 @@ async function procesar(c: Correo, cfg: Awaited<ReturnType<typeof leerConfigurac
         .eq("id", d.id);
       continue;
     }
+    if (detener) {
+      pendientes++;
+      continue;
+    }
     const r = await enviarSes(de, d.correo, armado.asunto, armado.html, armado.texto, c.id);
+    if (r.resultado === "detener") {
+      detener = true;
+      pendientes++;
+      ultimoError = r.detalle ?? null;
+      continue;
+    }
     if (r.resultado === "reintentar") {
       pendientes++;
       ultimoError = r.detalle ?? null;
       if (c.intentos >= MAX_INTENTOS) {
+        pendientes--;
         await supabase
           .from("correo_destinatarios")
           .update({ estado: "fallido", detalle: r.detalle, actualizado_en: new Date().toISOString() })
@@ -164,7 +196,7 @@ async function procesar(c: Correo, cfg: Awaited<ReturnType<typeof leerConfigurac
       }
     } else {
       if (r.resultado === "fallido") ultimoError = r.detalle ?? null;
-      await supabase
+      const { error: eAct } = await supabase
         .from("correo_destinatarios")
         .update({
           estado: r.resultado,
@@ -173,28 +205,35 @@ async function procesar(c: Correo, cfg: Awaited<ReturnType<typeof leerConfigurac
           actualizado_en: new Date().toISOString(),
         })
         .eq("id", d.id);
+      if (eAct) console.error("No se pudo guardar el resultado de", d.id, eAct.message);
     }
     await dormir(PAUSA_MS);
   }
 
-  if (pendientes > 0 && c.intentos < MAX_INTENTOS) {
-    // Espera creciente: 2, 4, 8, 16, 32 minutos.
-    const espera = 2 ** c.intentos * 60_000;
+  if (detener || (pendientes > 0 && c.intentos < MAX_INTENTOS)) {
+    // Espera creciente: 2, 4, 8, 16, 32 minutos (un problema de la cuenta no gasta intentos).
+    const espera = detener ? 5 * 60_000 : 2 ** c.intentos * 60_000;
     await supabase
       .from("correos_pendientes")
-      .update({ estado: "pendiente", ultimo_error: ultimoError, proximo_intento: new Date(Date.now() + espera).toISOString() })
+      .update({
+        estado: "pendiente",
+        ultimo_error: ultimoError,
+        proximo_intento: new Date(Date.now() + espera).toISOString(),
+        ...(detener ? { intentos: Math.max(c.intentos - 1, 0) } : {}),
+      })
       .eq("id", c.id);
-    return;
+    return !detener;
   }
 
-  // Estado final del correo según sus destinatarios.
-  const { data: todos } = await supabase.from("correo_destinatarios").select("estado").eq("correo_id", c.id);
-  const estados = ((todos ?? []) as { estado: string }[]).map((t) => t.estado);
+  // Estado final del correo según sus destinatarios principales (la copia oculta interna no cuenta).
+  const { data: todos } = await supabase.from("correo_destinatarios").select("estado, tipo").eq("correo_id", c.id);
+  const estados = ((todos ?? []) as { estado: string; tipo: string }[]).filter((t) => t.tipo !== "cco").map((t) => t.estado);
   const ok = estados.filter((e) => e === "enviado" || e === "entregado").length;
   const registrados = estados.filter((e) => e === "registrado").length;
   const malos = estados.filter((e) => e === "fallido" || e === "rebotado" || e === "queja").length;
   const estado = registrados > 0 && ok === 0 ? "registrado" : ok === 0 ? "fallido" : malos > 0 ? "parcial" : "enviado";
   await supabase.from("correos_pendientes").update({ estado, ultimo_error: ultimoError }).eq("id", c.id);
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -204,10 +243,13 @@ Deno.serve(async (req) => {
   if (valido !== true) return new Response("No autorizado", { status: 401 });
 
   const cfg = await leerConfiguracion();
+  const plantillas = new Map<string, Plantilla | null>();
   const inicio = Date.now();
   let procesados = 0;
-  while (Date.now() - inicio < TIEMPO_MAXIMO_MS) {
-    const { data: lote, error } = await supabase.rpc("correos_tomar_lote", { p_limite: 20 });
+  let seguir = true;
+  // De a un correo por vez: si la función se corta, a lo sumo queda uno "en proceso".
+  while (seguir && Date.now() - inicio < TIEMPO_MAXIMO_MS) {
+    const { data: lote, error } = await supabase.rpc("correos_tomar_lote", { p_limite: 1 });
     if (error) {
       console.error("correos_tomar_lote:", error.message);
       break;
@@ -215,12 +257,17 @@ Deno.serve(async (req) => {
     if (!lote?.length) break;
     for (const c of lote as Correo[]) {
       try {
-        await procesar(c, cfg);
+        seguir = await procesar(c, cfg, plantillas);
       } catch (e) {
         console.error("procesar", c.id, String(e));
+        const agotado = c.intentos >= MAX_INTENTOS;
         await supabase
           .from("correos_pendientes")
-          .update({ estado: "pendiente", ultimo_error: String(e).slice(0, 300), proximo_intento: new Date(Date.now() + 120_000).toISOString() })
+          .update({
+            estado: agotado ? "fallido" : "pendiente",
+            ultimo_error: String(e).slice(0, 300),
+            proximo_intento: new Date(Date.now() + 2 ** c.intentos * 60_000).toISOString(),
+          })
           .eq("id", c.id);
       }
       procesados++;
