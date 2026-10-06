@@ -49,9 +49,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Una fila por contacto (o una sola si la empresa no tiene contactos).
     type Contacto = { tipo: keyof typeof TIPOS_CONTACTO; nombre: string; telefono: string | null; correo: string; recibe_notificaciones: boolean; activo: boolean };
-    const filas = ((data ?? []) as unknown as Fila[]).flatMap((e) => {
+    type FilaC = Fila & { c: Contacto | null };
+    const filas = ((data ?? []) as unknown as Fila[]).flatMap((e): FilaC[] => {
       const contactos = (e.empresa_contactos as Contacto[] | null) ?? [];
-      return contactos.length ? contactos.map((c) => ({ ...e, c })) : [{ ...e, c: null as Contacto | null }];
+      return contactos.length ? contactos.map((c) => ({ ...e, c }) as FilaC) : [{ ...e, c: null } as FilaC];
     });
     const columnas: ColumnaCsv<(typeof filas)[number]>[] = [
       { titulo: "RUC", valor: (r) => r.ruc },
@@ -85,9 +86,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (error) return new NextResponse("Error al exportar", { status: 500 });
 
     type Asig = { activo: boolean; empresas: { ruc: string; razon_social: string } | null };
-    const filas = ((data ?? []) as unknown as Fila[]).flatMap((fr) => {
+    type FilaA = Fila & { a: Asig | null };
+    const filas = ((data ?? []) as unknown as Fila[]).flatMap((fr): FilaA[] => {
       const asig = ((fr.empresa_frentes as Asig[] | null) ?? []).filter((a) => a.activo);
-      return asig.length ? asig.map((a) => ({ ...fr, a })) : [{ ...fr, a: null as Asig | null }];
+      return asig.length ? asig.map((a) => ({ ...fr, a }) as FilaA) : [{ ...fr, a: null } as FilaA];
     });
     const nombreDe = (v: unknown) => (v as { nombre?: string } | null)?.nombre;
     const columnas: ColumnaCsv<(typeof filas)[number]>[] = [
