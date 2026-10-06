@@ -161,9 +161,9 @@ function esquemaCampo(f: Campo): z.ZodType {
         .number(`${f.etiqueta}: indica un número`)
         .min(0, `${f.etiqueta}: no puede ser negativo`)
         .max(100_000)
-        .refine((n) => Math.round(n * 100) === n * 100, `${f.etiqueta}: máximo 2 decimales`);
+        .refine((n) => Math.abs(Math.round(n * 100) - n * 100) < 1e-6, `${f.etiqueta}: máximo 2 decimales`);
     case "fecha": {
-      const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, `${f.etiqueta}: fecha no válida`);
+      const fecha = z.iso.date(`${f.etiqueta}: fecha no válida`);
       return f.requerido ? fecha : z.preprocess(vacioANulo, fecha.nullable());
     }
     case "booleano":

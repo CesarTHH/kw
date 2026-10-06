@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Una fila por contacto (o una sola si la empresa no tiene contactos).
     type Contacto = { tipo: keyof typeof TIPOS_CONTACTO; nombre: string; telefono: string | null; correo: string; recibe_notificaciones: boolean; activo: boolean };
-    const filas = (data ?? []).flatMap((e: Fila) => {
+    const filas = ((data ?? []) as unknown as Fila[]).flatMap((e) => {
       const contactos = (e.empresa_contactos as Contacto[] | null) ?? [];
       return contactos.length ? contactos.map((c) => ({ ...e, c })) : [{ ...e, c: null as Contacto | null }];
     });
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (error) return new NextResponse("Error al exportar", { status: 500 });
 
     type Asig = { activo: boolean; empresas: { ruc: string; razon_social: string } | null };
-    const filas = (data ?? []).flatMap((fr: Fila) => {
+    const filas = ((data ?? []) as unknown as Fila[]).flatMap((fr) => {
       const asig = ((fr.empresa_frentes as Asig[] | null) ?? []).filter((a) => a.activo);
       return asig.length ? asig.map((a) => ({ ...fr, a })) : [{ ...fr, a: null as Asig | null }];
     });
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       { titulo: "Último acceso", valor: (r) => r.ultimo_acceso },
       { titulo: "Creado", valor: (r) => r.created_at },
     ];
-    return respuesta("usuarios", aCsv((data ?? []) as Fila[], columnas));
+    return respuesta("usuarios", aCsv((data ?? []) as unknown as Fila[], columnas));
   }
 
   const cat = catalogoPorCodigo(tipo);

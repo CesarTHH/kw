@@ -216,7 +216,7 @@ export default async function PaginaUsuarios({
           </form>
         )}
 
-        {usuario && puedeEditar && (
+        {usuario && puedeEditar && ctx.alcance === "todas" && (
           <section className="panel space-y-3">
             <h2 className="font-semibold text-oliva">Acceso</h2>
             {usuario.estado !== "pendiente" && (

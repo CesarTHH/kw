@@ -82,7 +82,7 @@ async function cargarOpciones(cat: Catalogo): Promise<Opciones> {
   );
   const opciones: Opciones = {};
   refs.forEach((f, i) => {
-    opciones[f.nombre] = (resultados[i]?.data ?? []) as { id: string; nombre: string }[];
+    opciones[f.nombre] = (resultados[i]?.data ?? []) as unknown as { id: string; nombre: string }[];
   });
   return opciones;
 }

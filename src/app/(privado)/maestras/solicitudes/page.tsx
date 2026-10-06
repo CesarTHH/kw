@@ -173,8 +173,9 @@ export default async function PaginaSolicitudes({
               )}
               {empresaExistente && (
                 <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900">
-                  Ese RUC ya está registrado como «{empresaExistente.razon_social}». Al aprobar se agregarán los frentes y
-                  contactos a esa empresa (sus datos no se sobrescriben).
+                  Ese RUC ya está registrado como «{empresaExistente.razon_social}». Al aprobar, el solicitante tendrá
+                  una cuenta con acceso a los datos de esa empresa y se agregarán sus frentes y contactos (los datos de la
+                  empresa no se sobrescriben). Verifica su identidad antes de aprobar.
                 </p>
               )}
               {sol.empresa_id && (
@@ -211,7 +212,7 @@ export default async function PaginaSolicitudes({
             {aprobar && (sol.estado === "pendiente" || (sol.estado === "aprobada" && !sol.usuario_id)) && (
               <section className="panel space-y-3">
                 <h3 className="font-semibold text-oliva">Decisión</h3>
-                <BotonAprobar id={sol.id} soloUsuario={sol.estado === "aprobada"} />
+                <BotonAprobar id={sol.id} soloUsuario={sol.estado === "aprobada"} empresaExistente={empresaExistente?.razon_social} />
                 {sol.estado === "pendiente" && (
                   <form action={rechazarSolicitud} className="space-y-2 border-t border-gris-medio/40 pt-3">
                     <input type="hidden" name="id" value={sol.id} />

@@ -21,9 +21,7 @@ export const nombreCatalogo = (max = 150) =>
     .transform((v) => v.replace(/\s+/g, " ").toUpperCase());
 
 const fechaOpcional = z
-  .string()
-  .trim()
-  .regex(/^(\d{4}-\d{2}-\d{2})?$/, "Fecha no válida")
+  .union([z.literal(""), z.iso.date("Fecha no válida")])
   .nullish()
   .transform((v) => (v ? v : null));
 
@@ -106,7 +104,7 @@ export function uuidONulo(v: FormDataEntryValue | null): string | null {
 // -----------------------------------------------------------------------------
 // Registro público de nuevos clientes
 // -----------------------------------------------------------------------------
-const fechaObligatoria = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Indica la fecha");
+const fechaObligatoria = z.iso.date("Indica una fecha válida");
 
 export const frenteSolicitudSchema = z
   .object({

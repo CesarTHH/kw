@@ -34,7 +34,7 @@ export async function aprobarSolicitud(_prev: EstadoAprobacion, formData: FormDa
   const supabase = await crearClienteServidor();
   const { data: s } = await supabase
     .from("solicitudes_registro")
-    .select("id, estado, usuario_nombre, usuario_correo, empresa_id, usuario_id")
+    .select("id, ruc, estado, usuario_nombre, usuario_correo, empresa_id, usuario_id")
     .eq("id", id)
     .maybeSingle();
   if (!s) return { error: "La solicitud no existe." };
@@ -42,6 +42,12 @@ export async function aprobarSolicitud(_prev: EstadoAprobacion, formData: FormDa
 
   let empresaId = s.empresa_id as string | null;
   if (s.estado === "pendiente") {
+    // Si el RUC ya existe, el solicitante tendrá acceso a los datos de esa empresa:
+    // se exige que quien aprueba confirme expresamente que pertenece a ella.
+    const { data: existente } = await supabase.from("empresas").select("id").eq("ruc", s.ruc).maybeSingle();
+    if (existente && formData.get("confirmar_empresa") !== "on") {
+      return { error: "Ese RUC ya existe. Confirma que el solicitante pertenece a esa empresa antes de aprobar." };
+    }
     const { data, error } = await supabase.rpc("aprobar_solicitud", { p_id: id });
     if (error) {
       console.error("[solicitudes] aprobar:", error.code);
@@ -74,8 +80,15 @@ export async function aprobarSolicitud(_prev: EstadoAprobacion, formData: FormDa
   }
 
   const { error: e3 } = await supabase.rpc("vincular_usuario_solicitud", { p_id: id, p_usuario_id: creado.user.id });
-  if (e3) console.error("[solicitudes] vincular:", e3.code);
   revalidatePath(RUTA);
+  if (e3) {
+    console.error("[solicitudes] vincular:", e3.code);
+    return {
+      correo: s.usuario_correo,
+      password,
+      aviso: "La cuenta se creó, pero no quedó enlazada a la solicitud. No es necesario reintentar.",
+    };
+  }
   return { correo: s.usuario_correo, password };
 }
 

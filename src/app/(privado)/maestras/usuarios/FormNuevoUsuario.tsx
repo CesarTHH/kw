@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { BotonEnviar } from "@/components/BotonEnviar";
+import { startTransition, useActionState } from "react";
 import { crearUsuario, type EstadoNuevoUsuario } from "./acciones";
 import { CamposRol } from "./CamposRol";
 import { PasswordUnaVez } from "./PasswordUnaVez";
@@ -11,7 +10,7 @@ export type OpcionRol = { id: string; nombre: string; alcance: "empresa" | "toda
 export type Opcion = { id: string; nombre: string };
 
 export function FormNuevoUsuario({ roles, empresas, comedores }: { roles: OpcionRol[]; empresas: Opcion[]; comedores: Opcion[] }) {
-  const [estado, accion] = useActionState<EstadoNuevoUsuario, FormData>(crearUsuario, {});
+  const [estado, accion, pendiente] = useActionState<EstadoNuevoUsuario, FormData>(crearUsuario, {});
 
   if (estado.password && estado.correo) {
     return (
@@ -26,7 +25,15 @@ export function FormNuevoUsuario({ roles, empresas, comedores }: { roles: Opcion
   }
 
   return (
-    <form action={accion} className="panel space-y-3">
+    <form
+      // Envío manual: así React no limpia el formulario si el servidor devuelve un error.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const datos = new FormData(e.currentTarget);
+        startTransition(() => accion(datos));
+      }}
+      className="panel space-y-3"
+    >
       <h2 className="font-semibold text-oliva">Nuevo usuario</h2>
       {estado.error && (
         <p role="alert" className="alerta-error">
@@ -46,7 +53,9 @@ export function FormNuevoUsuario({ roles, empresas, comedores }: { roles: Opcion
         Se generará una contraseña temporal que verás una sola vez. El usuario deberá cambiarla en su primer ingreso.
       </p>
       <div className="flex justify-end">
-        <BotonEnviar pendiente="Creando…">Crear usuario</BotonEnviar>
+        <button type="submit" className="btn-marca" disabled={pendiente} aria-busy={pendiente}>
+          {pendiente ? "Creando…" : "Crear usuario"}
+        </button>
       </div>
     </form>
   );

@@ -102,6 +102,9 @@ export async function guardarUsuario(formData: FormData) {
   const r = await resolverRol(ctx, datos.data.rol_id, datos.data.empresa_id, datos.data.comedor_id);
   if ("error" in r) redirect(retorno(RUTA, formData, { id, error: "datos" }));
 
+  // Una cuenta pendiente se activa al recibir su rol (solo si de verdad está pendiente).
+  const activar = formData.get("activar") === "1" && (await usuarioVisible(datos.data.id))?.estado === "pendiente";
+
   // La actualización pasa por RLS y por los triggers que impiden escalar privilegios.
   const supabase = await crearClienteServidor();
   const { data, error } = await supabase
@@ -111,8 +114,7 @@ export async function guardarUsuario(formData: FormData) {
       rol_id: r.rol.id,
       empresa_id: r.empresa_id,
       comedor_id: r.comedor_id,
-      // Una cuenta pendiente se activa al recibir su rol.
-      ...(formData.get("activar") === "1" ? { estado: "activo" } : {}),
+      ...(activar ? { estado: "activo" } : {}),
     })
     .eq("id", datos.data.id)
     .select("id");
@@ -124,7 +126,8 @@ export async function guardarUsuario(formData: FormData) {
 export async function cambiarEstadoUsuario(formData: FormData) {
   const ctx = await permisoEnAccion("maestras.usuarios", "editar");
   const id = formData.get("id");
-  if (!ctx) redirect(retorno(RUTA, formData, { error: "permiso" }));
+  // Bloquear en Auth usa la clave secreta: solo roles de alcance "todas".
+  if (!ctx || ctx.alcance !== "todas") redirect(retorno(RUTA, formData, { error: "permiso" }));
   if (!esUuid(id)) redirect(retorno(RUTA, formData, { error: "datos" }));
   if (id === ctx.usuario_id) redirect(retorno(RUTA, formData, { id, error: "regla" }));
   if (!hayClaveAdmin()) redirect(retorno(RUTA, formData, { id, error: "guardar" }));
@@ -132,10 +135,14 @@ export async function cambiarEstadoUsuario(formData: FormData) {
 
   // 1) El perfil (con RLS y triggers). 2) Recién entonces, el bloqueo en Auth.
   const supabase = await crearClienteServidor();
+  const nuevo = activar ? "activo" : "inactivo";
+  const anterior = activar ? "inactivo" : "activo";
+  // Solo cambia si está en el estado opuesto (así el trigger siempre valida el cambio).
   const { data, error } = await supabase
     .from("perfiles")
-    .update({ estado: activar ? "activo" : "inactivo" })
+    .update({ estado: nuevo })
     .eq("id", id)
+    .eq("estado", anterior)
     .select("id");
   if (error || !data?.length) redirect(retorno(RUTA, formData, { id, error: error ? claveError(error.code) : "noexiste" }));
 
@@ -144,19 +151,22 @@ export async function cambiarEstadoUsuario(formData: FormData) {
   });
   if (e2) {
     console.error("[usuarios] ban_duration:", e2.code ?? e2.message);
+    // Se deshace el cambio del perfil para que Auth y la app no queden desalineados.
+    await supabase.from("perfiles").update({ estado: anterior }).eq("id", id);
     redirect(retorno(RUTA, formData, { id, error: "guardar" }));
   }
   revalidatePath(RUTA);
   redirect(retorno(RUTA, formData, { id, ok: "estado" }));
 }
 
-export type EstadoPassword = { error?: string; password?: string };
+export type EstadoPassword = { error?: string; password?: string; aviso?: string };
 
 /** Genera una contraseña temporal; el usuario deberá cambiarla al ingresar. */
 export async function restablecerPassword(_prev: EstadoPassword, formData: FormData): Promise<EstadoPassword> {
   const ctx = await permisoEnAccion("maestras.usuarios", "editar");
   const id = formData.get("id");
-  if (!ctx) return { error: "No tienes permiso." };
+  // Cambiar contraseñas usa la clave secreta: solo roles de alcance "todas".
+  if (!ctx || ctx.alcance !== "todas") return { error: "No tienes permiso." };
   if (!esUuid(id)) return { error: "Usuario no válido." };
   if (!hayClaveAdmin()) return { error: "Falta configurar SUPABASE_SECRET_KEY en el servidor." };
   if (id === ctx.usuario_id) return { error: "Para cambiar tu propia contraseña usa la opción de tu perfil." };
@@ -173,7 +183,9 @@ export async function restablecerPassword(_prev: EstadoPassword, formData: FormD
 
   // Después de guardar la contraseña (el trigger de Auth limpia la marca), se obliga a cambiarla.
   const supabase = await crearClienteServidor();
-  const { error: e2 } = await supabase.from("perfiles").update({ debe_cambiar_password: true }).eq("id", id);
-  if (e2) return { error: "La contraseña cambió, pero no se pudo exigir el cambio al ingresar. Inténtalo de nuevo." };
+  const { data, error: e2 } = await supabase.from("perfiles").update({ debe_cambiar_password: true }).eq("id", id).select("id");
+  if (e2 || !data?.length) {
+    return { password, aviso: "No se pudo exigir el cambio de contraseña al ingresar. Pídele al usuario que la cambie." };
+  }
   return { password };
 }

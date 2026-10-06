@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import { CheckCircle2, Plus, Trash2 } from "lucide-react";
-import { BotonEnviar } from "@/components/BotonEnviar";
 import { rucValido } from "@/lib/ruc";
 import { registrarSolicitud, type EstadoRegistro } from "./acciones";
 
@@ -19,7 +18,7 @@ const CONTACTOS = [
 const filaVacia = (clave: number): Fila => ({ clave, proyecto_id: "", area_id: "", frente: "", sponsor: "", desde: "", hasta: "" });
 
 export function FormRegistro({ proyectos, areas }: { proyectos: Opcion[]; areas: Opcion[] }) {
-  const [estado, accion] = useActionState<EstadoRegistro, FormData>(registrarSolicitud, {});
+  const [estado, accion, pendiente] = useActionState<EstadoRegistro, FormData>(registrarSolicitud, {});
   const [paso, setPaso] = useState<1 | 2>(1);
   const [filas, setFilas] = useState<Fila[]>([filaVacia(1)]);
   const [errorPaso, setErrorPaso] = useState<string>();
@@ -62,7 +61,15 @@ export function FormRegistro({ proyectos, areas }: { proyectos: Opcion[]; areas:
   }
 
   return (
-    <form action={accion} className="space-y-6">
+    <form
+      // Envío manual: así React no limpia el formulario si el servidor devuelve un error.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const datos = new FormData(e.currentTarget);
+        startTransition(() => accion(datos));
+      }}
+      className="space-y-6"
+    >
       <ol className="flex gap-2 text-sm font-semibold" aria-label="Pasos">
         <li className={`rounded-full px-4 py-1 ${paso === 1 ? "bg-marca text-white" : "bg-white text-oliva"}`}>1. Empresa y frentes</li>
         <li className={`rounded-full px-4 py-1 ${paso === 2 ? "bg-marca text-white" : "bg-white text-oliva"}`}>2. Contactos y usuario</li>
@@ -280,9 +287,9 @@ export function FormRegistro({ proyectos, areas }: { proyectos: Opcion[]; areas:
           <button type="button" onClick={() => setPaso(1)} className="btn-secundario">
             Anterior
           </button>
-          <BotonEnviar className="btn-oliva" pendiente="Enviando…">
-            Enviar solicitud
-          </BotonEnviar>
+          <button type="submit" className="btn-oliva" disabled={pendiente} aria-busy={pendiente}>
+            {pendiente ? "Enviando…" : "Enviar solicitud"}
+          </button>
         </div>
       </fieldset>
     </form>
