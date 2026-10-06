@@ -27,3 +27,6 @@
 | D23 | 06/10/2026 | Las cuentas nuevas reciben una contraseña temporal que se muestra una sola vez; el envío por correo llega en la Fase 3 | Aún no hay servicio de correo propio | Aplicada |
 | D24 | 06/10/2026 | Crear, bloquear y restablecer contraseñas de usuarios solo lo pueden hacer roles de alcance "todas" | Esas acciones usan la clave secreta de Supabase (saltan RLS) | Aplicada |
 | D25 | 06/10/2026 | Aprobar una solicitud con un RUC ya registrado exige confirmar que el solicitante pertenece a esa empresa | Un RUC es público: sin esta confirmación, cualquiera podría pedir acceso a otra empresa | Aplicada |
+| D26 | 06/10/2026 | Se envía un correo por destinatario (no uno con todos en "Para") | Estado exacto por destinatario, rebotes bien asignados y, en sandbox, una dirección no verificada no bloquea a las demás. El costo en SES es el mismo | Aplicada |
+| D27 | 06/10/2026 | Los correos de bienvenida y aprobación no llevan contraseñas ni enlaces con token: indican cómo crear la contraseña con "¿Olvidaste tu contraseña?" | Nada secreto queda guardado en el historial de correos | Aplicada |
+| D28 | 06/10/2026 | La Edge Function se protege con un secreto guardado solo en Supabase Vault | No hay claves en el código ni en la configuración de la función | Aplicada |

@@ -108,7 +108,7 @@ export function renderizar(
 ): Correo {
   const filas = registros(datos);
   const simple = (nombre: string): Valor => {
-    if (nombre in globales) return globales[nombre as keyof typeof globales];
+    if (Object.hasOwn(globales, nombre)) return globales[nombre as keyof typeof globales];
     const v = datos[nombre];
     return typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? v : "";
   };

@@ -67,3 +67,7 @@ verify_enabled = true
 [auth.sessions]
 timebox = "12h0m0s"
 inactivity_timeout = "2h0m0s"
+
+# La llama Supabase Cron con un secreto propio (cabecera x-cron-secreto), no con un JWT.
+[functions.enviar-correos]
+verify_jwt = false

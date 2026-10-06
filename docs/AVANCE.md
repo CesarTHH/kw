@@ -72,3 +72,18 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - **Base de datos:** migración `solicitudes` y 21 pruebas nuevas (77 en total, todas aprobadas).
 - **Revisión de seguridad independiente:** se corrigieron todos los hallazgos.
 - **Correos** de aprobación y rechazo: se activan en la Fase 3 (Amazon SES). Mientras tanto, la contraseña temporal se entrega por un canal seguro.
+
+## Fase 3: qué se entregó (06/10/2026)
+
+- **Cola de correos (outbox):** cada acción que notifica deja el correo en la base de datos dentro de la misma operación. Si la operación falla, no queda ningún correo a medias.
+- **Envío automático:** Supabase Cron revisa la cola cada minuto y llama a la Edge Function `enviar-correos`, que arma el correo y lo envía por Amazon SES. Reintenta con espera creciente; tras 6 intentos lo marca como fallido.
+  - Un envío por destinatario, para saber el estado de cada uno.
+  - Copia oculta interna opcional (Configuración).
+  - Contactos de la empresa marcados para recibir notificaciones (máximo 5).
+- **Modo "solo registrar"** (activo ahora): los correos se arman y se guardan, pero no salen. Se cambia a "Enviar por Amazon SES" en Configuración cuando SES esté listo.
+- **Plantillas** basadas en el Word (programación, adición/reducción, traslado, refrigerios) y nuevas (registro recibido, aprobado y rechazado, cuenta creada, Contáctanos). El Superadmin las edita con vista previa.
+- **Correos ya conectados:** registro recibido, registro aprobado, registro rechazado (con el motivo) y cuenta creada. Los de raciones y refrigerios se conectan en las Fases 4 y 5.
+- **Historial de correos** (Administración): búsqueda por empresa, RUC, asunto, destinatario, tipo, estado y fechas; contenido tal como se envió; estado por destinatario; botón "Reenviar".
+- **Eventos de SES** (entregado, rebote, queja) por SNS con verificación de firma. Las direcciones que rebotan o marcan spam quedan bloqueadas y se listan en "Direcciones bloqueadas".
+- Probado en el proyecto de pruebas: un correo encolado se procesó en menos de un minuto.
+- 22 pruebas nuevas de base de datos (99 en total) y pruebas unitarias de plantillas y firma SNS.
