@@ -1,16 +1,11 @@
-import type { Metadata } from "next";
-import { EnConstruccion } from "@/components/EnConstruccion";
-import { Encabezado } from "@/components/Encabezado";
-import { requerirPermiso } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { obtenerMenu, requerirPermiso } from "@/lib/auth";
+import { hijos } from "@/lib/permisos";
 
-export const metadata: Metadata = { title: "Data maestra" };
-
+/** Abre la primera pestaña a la que el usuario tiene acceso. */
 export default async function Pagina() {
-  const ctx = await requerirPermiso("maestras");
-  return (
-    <>
-      <Encabezado titulo="Data maestra" ctx={ctx} />
-      <EnConstruccion modulo="Data maestra" fase={2} />
-    </>
-  );
+  await requerirPermiso("maestras");
+  const primera = hijos(await obtenerMenu(), "maestras").find((m) => m.ruta);
+  if (!primera?.ruta) notFound();
+  redirect(primera.ruta);
 }

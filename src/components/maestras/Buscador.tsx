@@ -1,0 +1,29 @@
+import { Search } from "lucide-react";
+
+/** Formulario de búsqueda (GET): conserva los filtros extra como campos ocultos. */
+export function Buscador({
+  accion,
+  q,
+  placeholder = "Buscar…",
+  ocultos = {},
+  children,
+}: {
+  accion: string;
+  q: string;
+  placeholder?: string;
+  ocultos?: Record<string, string | undefined>;
+  children?: React.ReactNode;
+}) {
+  return (
+    <form action={accion} method="get" role="search" className="flex flex-wrap items-center gap-2">
+      {Object.entries(ocultos).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
+      <label className="relative min-w-48 flex-1">
+        <span className="sr-only">{placeholder}</span>
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-gris-medio" aria-hidden />
+        <input name="q" defaultValue={q} placeholder={placeholder} maxLength={60} className="campo pl-8" />
+      </label>
+      {children}
+      <button type="submit" className="btn-secundario">Buscar</button>
+    </form>
+  );
+}

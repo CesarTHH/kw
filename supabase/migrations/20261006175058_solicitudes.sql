@@ -190,14 +190,14 @@ begin
     raise exception 'Número fuera de rango' using errcode = '22023';
   end if;
   if jsonb_typeof(new.valor) = 'object' then
-    -- Mismas claves que antes ({dia_semana, hora}); día 0 (domingo) a 6 (sábado).
+    -- Mismas claves que antes ({dia_semana, hora}); día ISO: 1 (lunes) a 7 (domingo).
     if (select array_agg(k order by k) from jsonb_object_keys(new.valor) k)
        is distinct from (select array_agg(k order by k) from jsonb_object_keys(old.valor) k) then
       raise exception 'El valor de % / % debe conservar sus campos', new.modulo, new.regla using errcode = '22023';
     end if;
     if new.valor ? 'dia_semana' and (jsonb_typeof(new.valor -> 'dia_semana') <> 'number'
-        or (new.valor ->> 'dia_semana') !~ '^[0-6]$') then
-      raise exception 'El día de la semana debe ser un número de 0 (domingo) a 6 (sábado)' using errcode = '22023';
+        or (new.valor ->> 'dia_semana') !~ '^[1-7]$') then
+      raise exception 'El día de la semana debe ser un número de 1 (lunes) a 7 (domingo)' using errcode = '22023';
     end if;
     if new.valor ? 'hora' and (jsonb_typeof(new.valor -> 'hora') <> 'string'
         or (new.valor ->> 'hora') !~ '^([01]\d|2[0-3]):[0-5]\d$') then

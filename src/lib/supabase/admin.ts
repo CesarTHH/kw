@@ -16,3 +16,8 @@ export function crearClienteAdmin() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
+
+/** ¿Está configurada la clave secreta? (para mostrar un aviso claro en vez de un error). */
+export function hayClaveAdmin(): boolean {
+  return !!process.env.SUPABASE_SECRET_KEY;
+}
