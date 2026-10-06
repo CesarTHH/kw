@@ -1,0 +1,26 @@
+# Registro de decisiones
+
+| # | Fecha | Decisión | Motivo | Estado |
+|---|---|---|---|---|
+| D1 | 29/09/2026 | Stack: TypeScript, Next.js, Supabase (us-east-1), Cloud Run (us-east4), Amazon SES, Cloudflare, GitHub | Ver el documento "Arquitectura y costos" | Aprobada |
+| D2 | 05/10/2026 | Las raciones se guardan como **movimientos inmutables + tabla de saldos** | La app actual ya funciona así (Programación, Adicionales, Reducciones, Traslados con signo); la migración es directa y queda la trazabilidad completa | Propuesta |
+| D3 | 05/10/2026 | Cada clic en "Enviar" = un **envío** con clave de idempotencia y una sola transacción | Hoy Power Apps graba fila por fila (~1 s por fila; envíos de hasta 40 min); un doble clic no debe duplicar | Propuesta |
+| D4 | 05/10/2026 | La regla de traslado de servicio = **mismo tipo de servicio** (DESAYUNO / ALMUERZO / CENA), con tabla de excepciones | Coincide con el ejemplo del prompt y con más del 99 % de los traslados históricos | Propuesta |
+| D5 | 05/10/2026 | Tarifas de servicio y precios de refrigerio **con vigencia** (desde/hasta) | El maestro de servicios ya tiene 15 periodos de precio | Propuesta |
+| D6 | 05/10/2026 | Nueva tabla `comedor_servicios`, cargada al inicio desde el historial | Hoy no existe y el prompt la exige | Propuesta, pendiente P9 |
+| D7 | 05/10/2026 | Las contraseñas no se migran ni se muestran; cada usuario define la suya por correo | Hoy la contraseña se ve (enmascarada) en Data maestra; regla de seguridad 4.6 | Propuesta |
+| D8 | 05/10/2026 | Frentes y catálogos que no existen en los maestros se crean al migrar como **inactivos** y con la marca "creado por migración" | 34 combinaciones (26.544 filas) del historial no están en el maestro de frentes | Propuesta |
+| D9 | 05/10/2026 | Se corrigen dos errores visibles de la app actual: las etiquetas del eje X del dashboard y el signo negativo en "Raciones actuales" del traslado | Capturas | Propuesta |
+| D10 | 05/10/2026 | Una cuenta por persona (login con correo); una empresa puede tener varios usuarios | Respuesta P1 | Aprobada |
+| D11 | 05/10/2026 | Datos iniciales: un usuario de ejemplo por rol y productos de refrigerio de ejemplo; el Superadmin crea los reales desde su panel | Respuesta P2 | Aprobada |
+| D12 | 05/10/2026 | La programación de la semana siguiente cierra el **miércoles a las 23:59** (configurable) | Respuesta P3 y patrón de los datos | Aprobada |
+| D13 | 05/10/2026 | No se implementan Puntos K, Kitchenette, Entrega de kitchenette, Gestión de pagos ni Solicitudes express | Respuesta P4 | Aprobada |
+| D14 | 05/10/2026 | Solo el Superadmin puede registrar fuera de plazo, con motivo obligatorio y auditoría | Respuesta P5 | Aprobada |
+| D15 | 05/10/2026 | Las programaciones negativas del historial se migran como reducciones | Respuesta P6 | Aprobada |
+| D16 | 05/10/2026 | Traslados solo dentro del mismo sector, con matriz de sectores configurable | Respuesta P8 | Aprobada |
+| D17 | 05/10/2026 | Los nombres reales de comedores y servicios se usan en los datos de ejemplo; empresas, personas, frentes y tarifas de ejemplo son ficticios | Son catálogos operativos sin datos personales y hacen realistas las pruebas | Aplicada |
+| D18 | 05/10/2026 | Las cuentas solo las crea el administrador (registro libre de Supabase desactivado); rol y empresa van en `app_metadata`, que solo escribe el servidor | Evita que alguien se registre o se asigne un rol | Aplicada |
+| D19 | 05/10/2026 | La verificación en dos pasos se exige en la base de datos: un rol con MFA no ve datos si la sesión no es `aal2` | Defensa aunque falle una pantalla | Aplicada |
+| D20 | 05/10/2026 | Un usuario solo administra usuarios de su alcance; nadie salvo el Superadmin asigna el rol Superadmin ni cambia su propio rol; los roles de alcance "empresa" no reciben menús de administración | Revisión de seguridad de la Fase 1 | Aplicada |
+| D21 | 05/10/2026 | El fin del cambio obligatorio de contraseña lo marca un trigger de `auth.users`, no la app | Revisión de seguridad: evita saltarse el cambio | Aplicada |
+| D22 | 05/10/2026 | Los enlaces de correo se confirman con un botón (POST) | Los antivirus de correo corporativos abren los enlaces y gastarían el código | Aplicada |

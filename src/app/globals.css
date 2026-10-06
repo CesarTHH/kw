@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/* Paleta de Kuntur Wasi (misma que la app actual) */
+@theme {
+  --color-marca: #f58634;          /* naranja principal */
+  --color-marca-oscuro: #d96d1f;   /* hover del naranja */
+  --color-oliva: #5c5e4e;          /* botones de login y encabezados de grilla */
+  --color-oliva-claro: #a3a596;    /* botones laterales grandes */
+  --color-gris-claro: #e8e9e4;     /* fondos y paneles */
+  --color-gris-panel: #d8d9d2;     /* panel de formularios */
+  --color-gris-medio: #929483;     /* textos secundarios y bordes */
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    @apply bg-gris-claro text-neutral-800 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-marca;
+  }
+}
+
+@layer components {
+  .btn-marca {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-marca px-5 py-2.5 font-semibold text-white shadow
+           transition hover:bg-marca-oscuro disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-oliva {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-oliva px-8 py-2.5 font-semibold text-white shadow
+           transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-secundario {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gris-medio bg-white px-4 py-2 font-medium
+           text-oliva transition hover:bg-gris-claro disabled:opacity-60;
+  }
+  .campo {
+    @apply block w-full rounded border border-gris-medio/60 bg-white px-3 py-2 text-sm text-neutral-800
+           placeholder:text-gris-medio focus:border-marca focus:outline-none;
+  }
+  .etiqueta {
+    @apply mb-1 block text-sm font-semibold text-oliva;
+  }
+  .panel {
+    @apply rounded-xl bg-gris-panel p-5 shadow;
+  }
+  .tabla {
+    @apply w-full border-collapse bg-white text-sm;
+  }
+  .tabla th {
+    @apply border-r border-[#c9b48a] bg-oliva px-3 py-2 text-left font-normal text-white last:border-r-0;
+  }
+  .tabla td {
+    @apply border-b border-gris-claro px-3 py-2;
+  }
+  .tabla tbody tr:nth-child(odd) {
+    @apply bg-gris-claro/60;
+  }
+  .alerta-error {
+    @apply rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800;
+  }
+  .alerta-ok {
+    @apply rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800;
+  }
+}

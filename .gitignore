@@ -1,0 +1,32 @@
+# Dependencias y compilación
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secretos: NUNCA al repositorio
+.env
+.env.*
+!.env.example
+
+# Datos reales (Ley 29733): nunca al repositorio
+Datos/
+*.csv
+*.xlsx
+*.xls
+*.docx
+*.pdf
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+playwright-report/
+test-results/

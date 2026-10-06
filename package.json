@@ -1,0 +1,44 @@
+{
+  "name": "portal-raciones-kw",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Portal de Raciones Kuntur Wasi",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:push": "supabase db push",
+    "db:tipos": "supabase gen types typescript --linked --schema public > src/lib/supabase/tipos.ts",
+    "usuarios:ejemplo": "node --env-file=.env.local scripts/crear-usuarios-ejemplo.mjs",
+    "db:ejemplo": "supabase db push --include-seed"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.75.0",
+    "lucide-react": "^0.540.0",
+    "next": "^16.0.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.30.0",
+    "eslint-config-next": "^16.0.10",
+    "supabase": "^2.40.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
