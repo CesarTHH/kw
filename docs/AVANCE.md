@@ -56,3 +56,19 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - Proyecto Supabase de pruebas: `kw-raciones-pruebas` (us-east-1), con migraciones, datos de ejemplo y un usuario por rol.
 - La IP registrada en la auditoría es la del servidor de la app; la IP real del usuario se agregará en la Fase 3.
 - Después de verificar el segundo factor, la app vuelve al menú en lugar de a la página que se pidió originalmente. Es una mejora menor.
+
+## Fase 2: qué se entregó (06/10/2026)
+
+- **Tablas maestras** (`/maestras`), con pestañas según los permisos de cada rol:
+  - **Clientes y contactos:** búsqueda, paginación, alta y edición de empresas (RUC con dígito verificador), contactos por tipo (gestión de raciones, facturación, cobranzas) y lista de frentes asignados.
+  - **Frentes de trabajo:** alta y edición, filtro por proyecto, asignación de empresas con fechas de contrato.
+  - **Catálogos:** proyectos, áreas, sectores, comedores, servicios y tarifas (sin fechas que se crucen), más las matrices **servicios por comedor** y **traslados entre sectores**.
+  - **Usuarios:** alta con contraseña temporal que se muestra una sola vez, edición de rol / empresa / comedor, activar y desactivar (bloquea también el acceso en Supabase Auth) y restablecer contraseña.
+  - **Solicitudes de registro:** bandeja para aprobar (crea empresa, contactos, frentes y la cuenta del contratista) o rechazar con motivo. Si el RUC ya existe, se pide confirmar que el solicitante pertenece a esa empresa.
+  - Nada se borra: los registros se desactivan.
+  - Exportación a Excel (CSV) con el permiso "exportar", protegida contra fórmulas maliciosas.
+- **Registro público de nuevos clientes** (`/registro`): dos pasos (empresa y frentes; contactos y usuario), aceptación de términos, campo trampa contra robots y límite de envíos.
+- **Configuración y horarios** (`/admin/configuracion`): plazos por módulo (con validación en la base de datos), zona horaria oficial y datos generales.
+- **Base de datos:** migración `solicitudes` y 21 pruebas nuevas (77 en total, todas aprobadas).
+- **Revisión de seguridad independiente:** se corrigieron todos los hallazgos.
+- **Correos** de aprobación y rechazo: se activan en la Fase 3 (Amazon SES). Mientras tanto, la contraseña temporal se entrega por un canal seguro.

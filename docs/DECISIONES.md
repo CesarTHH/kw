@@ -24,3 +24,6 @@
 | D20 | 05/10/2026 | Un usuario solo administra usuarios de su alcance; nadie salvo el Superadmin asigna el rol Superadmin ni cambia su propio rol; los roles de alcance "empresa" no reciben menús de administración | Revisión de seguridad de la Fase 1 | Aplicada |
 | D21 | 05/10/2026 | El fin del cambio obligatorio de contraseña lo marca un trigger de `auth.users`, no la app | Revisión de seguridad: evita saltarse el cambio | Aplicada |
 | D22 | 05/10/2026 | Los enlaces de correo se confirman con un botón (POST) | Los antivirus de correo corporativos abren los enlaces y gastarían el código | Aplicada |
+| D23 | 06/10/2026 | Las cuentas nuevas reciben una contraseña temporal que se muestra una sola vez; el envío por correo llega en la Fase 3 | Aún no hay servicio de correo propio | Aplicada |
+| D24 | 06/10/2026 | Crear, bloquear y restablecer contraseñas de usuarios solo lo pueden hacer roles de alcance "todas" | Esas acciones usan la clave secreta de Supabase (saltan RLS) | Aplicada |
+| D25 | 06/10/2026 | Aprobar una solicitud con un RUC ya registrado exige confirmar que el solicitante pertenece a esa empresa | Un RUC es público: sin esta confirmación, cualquiera podría pedir acceso a otra empresa | Aplicada |
