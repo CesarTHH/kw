@@ -98,19 +98,19 @@ async function enviarSes(
       return { resultado: "enviado", messageId };
     }
     const detalle = `SES ${r.status}: ${cuerpo.slice(0, 300)}`;
-    const texto = cuerpo.toLowerCase();
+    const error = cuerpo.toLowerCase();
     // Problemas de la cuenta o de la configuración (credenciales, remitente sin verificar,
     // envío pausado): se detiene la ejecución y se reintenta después, sin dar por perdido el correo.
     if (
       r.status === 401 ||
       r.status === 403 ||
-      /accountsuspended|sendingpaused|mailfromdomainnotverified|configurationsetdoesnotexist/.test(texto) ||
-      texto.includes(de.toLowerCase().replace(/^.*<|>$/g, ""))
+      /accountsuspended|sendingpaused|mailfromdomainnotverified|configurationsetdoesnotexist/.test(error) ||
+      error.includes(de.toLowerCase().replace(/^.*<|>$/g, ""))
     ) {
       return { resultado: "detener", detalle };
     }
     // Rechazo de ESTE destinatario (dirección inválida o no verificada en sandbox): definitivo.
-    if (r.status === 400 && (texto.includes(para.toLowerCase()) || /invalid.*address|illegal address/.test(texto))) {
+    if (r.status === 400 && (error.includes(para.toLowerCase()) || /invalid.*address|illegal address/.test(error))) {
       return { resultado: "fallido", detalle };
     }
     // 429 (límite de envío), 5xx y cualquier otro caso: temporal.
