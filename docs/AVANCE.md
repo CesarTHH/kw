@@ -3,7 +3,7 @@
 | Fase | Estado | Fecha | Notas |
 |---|---|---|---|
 | 0. Análisis | **Completa** | 05/10/2026 | P1–P6 y P8 respondidas; las demás preguntas se resuelven en la fase de cada módulo |
-| 1. Base | **Entregada, pendiente de compilar en tu PC** | 05/10/2026 | Ver detalle abajo |
+| 1. Base | **Entregada, compila y pasa todas las pruebas en GitHub** | 06/10/2026 | Pendiente: tu prueba en el navegador |
 | 2. Maestras y registro | Pendiente | | |
 | 3. Correos | Pendiente | | |
 | 4. Gestiona tus raciones | Pendiente | | |
@@ -52,6 +52,7 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 
 ## Pendientes conocidos
 
-- **No se pudo compilar la app en el entorno de desarrollo**, porque el registro de npm estaba bloqueado. La primera compilación (`npm install`, `npm run build`) se hará en la PC del usuario.
+- 06/10/2026: primera ejecución en GitHub Actions en verde (lint, tipos, pruebas unitarias, build, auditoría de dependencias y 56 pruebas de seguridad en Supabase real).
+- Proyecto Supabase de pruebas: `kw-raciones-pruebas` (us-east-1), con migraciones, datos de ejemplo y un usuario por rol.
 - La IP registrada en la auditoría es la del servidor de la app; la IP real del usuario se agregará en la Fase 3.
 - Después de verificar el segundo factor, la app vuelve al menú en lugar de a la página que se pidió originalmente. Es una mejora menor.
