@@ -227,7 +227,7 @@ export default async function PaginaSolicitudes({
                   </form>
                 )}
                 <p className="text-xs text-gris-medio">
-                  El aviso por correo al solicitante se activa cuando se configure el envío de correos (Fase 3).
+                  El solicitante recibe un correo en ambos casos (aprobación o rechazo).
                 </p>
               </section>
             )}

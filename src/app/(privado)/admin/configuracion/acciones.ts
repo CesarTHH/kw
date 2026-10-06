@@ -79,7 +79,16 @@ export async function guardarGeneral(formData: FormData) {
     if (!c.ok) redirect(`${RUTA}?error=datos`);
     let valor = c.valor;
     if (f.clave === "zona_horaria" && !Intl.supportedValuesOf("timeZone").includes(String(valor))) redirect(`${RUTA}?error=datos`);
-    if ((f.clave === "correo.cco_interno" || f.clave === "contacto.destinatario") && valor !== "") {
+    if (f.clave === "correo.modo" && valor !== "registrar" && valor !== "enviar") redirect(`${RUTA}?error=datos`);
+    if (f.clave === "app.url") {
+      const url = String(valor).replace(/\/+$/, "");
+      if (!/^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(url)) redirect(`${RUTA}?error=datos`);
+      valor = url;
+    }
+    if (
+      (f.clave === "correo.cco_interno" || f.clave === "contacto.destinatario" || f.clave === "correo.remitente_direccion") &&
+      valor !== ""
+    ) {
       const correo = correoSchema.safeParse(valor);
       if (!correo.success) redirect(`${RUTA}?error=datos`);
       valor = correo.data;

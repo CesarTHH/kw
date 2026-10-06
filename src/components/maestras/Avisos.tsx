@@ -7,6 +7,7 @@ const OK: Record<string, string> = {
   aprobada: "Solicitud aprobada.",
   rechazada: "Solicitud rechazada.",
   password: "Se generó una contraseña temporal.",
+  reenviado: "Correo puesto en cola para reenviarse. Este es el nuevo envío.",
 };
 const ERROR: Record<string, string> = {
   permiso: "No tienes permiso para esta acción.",

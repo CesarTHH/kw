@@ -3,7 +3,7 @@ import { BotonEnviar } from "@/components/BotonEnviar";
 import { Encabezado } from "@/components/Encabezado";
 import { Avisos } from "@/components/maestras/Avisos";
 import { obtenerMenu, requerirPermiso } from "@/lib/auth";
-import { CLAVES_EDITABLES, DIAS_ISO, ETIQUETAS_GENERAL, MODULOS_HORARIO } from "@/lib/configuracion";
+import { CLAVES_EDITABLES, DIAS_ISO, ETIQUETAS_GENERAL, MODOS_CORREO, MODULOS_HORARIO } from "@/lib/configuracion";
 import { puede } from "@/lib/permisos";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { guardarGeneral, guardarHorarios } from "./acciones";
@@ -85,10 +85,18 @@ export default async function PaginaConfiguracion({
                       </option>
                     ))}
                   </select>
+                ) : meta.tipo === "modo" ? (
+                  <select name={k} defaultValue={valor} disabled={!editar} className="campo">
+                    {Object.entries(MODOS_CORREO).map(([m, t]) => (
+                      <option key={m} value={m}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     name={k}
-                    type={meta.tipo === "correo" ? "email" : meta.tipo === "bytes" ? "number" : "text"}
+                    type={meta.tipo === "correo" ? "email" : meta.tipo === "bytes" ? "number" : meta.tipo === "url" ? "url" : "text"}
                     min={meta.tipo === "bytes" ? 1024 : undefined}
                     defaultValue={valor}
                     maxLength={300}

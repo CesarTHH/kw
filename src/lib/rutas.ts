@@ -1,5 +1,5 @@
 // Rutas que se pueden visitar sin sesión.
-const RUTAS_PUBLICAS = ["/", "/login", "/registro", "/olvide-password", "/auth/confirm"];
+const RUTAS_PUBLICAS = ["/", "/login", "/registro", "/olvide-password", "/auth/confirm", "/api/ses/eventos"];
 
 export function esRutaPublica(path: string): boolean {
   return RUTAS_PUBLICAS.some((r) => path === r || (r !== "/" && path.startsWith(r + "/")));

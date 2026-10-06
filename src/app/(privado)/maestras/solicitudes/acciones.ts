@@ -66,6 +66,8 @@ export async function aprobarSolicitud(_prev: EstadoAprobacion, formData: FormDa
     app_metadata: {
       rol_codigo: "contratista",
       nombre: s.usuario_nombre,
+      // Hace que el correo automático sea el de "registro aprobado".
+      solicitud_id: id,
       empresa_id: empresaId,
       debe_cambiar_password: true,
     },

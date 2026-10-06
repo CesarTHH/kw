@@ -50,7 +50,7 @@ export function FormNuevoUsuario({ roles, empresas, comedores }: { roles: Opcion
       </label>
       <CamposRol roles={roles} empresas={empresas} comedores={comedores} />
       <p className="text-xs text-gris-medio">
-        Se generará una contraseña temporal que verás una sola vez. El usuario deberá cambiarla en su primer ingreso.
+        Se generará una contraseña temporal que verás una sola vez. El usuario recibirá un correo de bienvenida con las instrucciones para crear su propia contraseña.
       </p>
       <div className="flex justify-end">
         <button type="submit" className="btn-marca" disabled={pendiente} aria-busy={pendiente}>
