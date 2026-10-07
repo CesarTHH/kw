@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    // Adjuntos de Contáctanos (hasta 10 MB) y PDFs; el servidor valida tipo y tamaño real.
+    serverActions: { bodySizeLimit: "12mb" },
+    proxyClientMaxBodySize: "12mb",
+  },
   async headers() {
     return [
       {
@@ -16,6 +21,11 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
         ],
+      },
+      {
+        // Visor de PDF dentro de la app (la cabecera de abajo reemplaza a DENY solo en esta ruta).
+        source: "/api/archivos/:path*",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
       },
     ];
   },

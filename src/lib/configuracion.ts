@@ -9,10 +9,13 @@ export const CLAVES_EDITABLES = [
   "contacto.destinatario",
   "archivos.pdf_menu_max_bytes",
   "archivos.contacto_max_bytes",
+  "archivos.documento_max_bytes",
+  "contacto.cc_maximo",
+  "contacto.max_por_hora",
 ] as const;
 
 /** Textos de la pantalla de configuración (claves conocidas). */
-export const ETIQUETAS_GENERAL: Record<(typeof CLAVES_EDITABLES)[number], { etiqueta: string; tipo: "zona" | "texto" | "correo" | "bytes" | "url" | "modo" }> = {
+export const ETIQUETAS_GENERAL: Record<(typeof CLAVES_EDITABLES)[number], { etiqueta: string; tipo: "zona" | "texto" | "correo" | "bytes" | "url" | "modo" | "entero" }> = {
   zona_horaria: { etiqueta: "Zona horaria oficial", tipo: "zona" },
   "app.url": { etiqueta: "Dirección pública de la app", tipo: "url" },
   "correo.modo": { etiqueta: "Envío de correos", tipo: "modo" },
@@ -22,6 +25,9 @@ export const ETIQUETAS_GENERAL: Record<(typeof CLAVES_EDITABLES)[number], { etiq
   "contacto.destinatario": { etiqueta: "Destinatario de «Contáctanos»", tipo: "correo" },
   "archivos.pdf_menu_max_bytes": { etiqueta: "Tamaño máximo del PDF del menú (bytes)", tipo: "bytes" },
   "archivos.contacto_max_bytes": { etiqueta: "Tamaño máximo de adjuntos en Contáctanos (bytes)", tipo: "bytes" },
+  "archivos.documento_max_bytes": { etiqueta: "Tamaño máximo de términos y condiciones o manual (bytes)", tipo: "bytes" },
+  "contacto.cc_maximo": { etiqueta: "Máximo de direcciones en copia (CC) en Contáctanos", tipo: "entero" },
+  "contacto.max_por_hora": { etiqueta: "Máximo de mensajes de Contáctanos por usuario en una hora", tipo: "entero" },
 };
 
 export const MODULOS_HORARIO: Record<string, string> = {

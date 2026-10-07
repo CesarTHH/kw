@@ -97,7 +97,10 @@ export async function guardarGeneral(formData: FormData) {
       if (!correo.success) redirect(`${RUTA}?error=datos`);
       valor = correo.data;
     }
-    if (f.clave.startsWith("archivos.") && (Number(valor) < 1024 || Number(valor) > 50 * 1024 * 1024)) {
+    if (f.clave.startsWith("archivos.") && (Number(valor) < 1024 || Number(valor) > 10 * 1024 * 1024)) {
+      redirect(`${RUTA}?error=datos`);
+    }
+    if ((f.clave === "contacto.cc_maximo" || f.clave === "contacto.max_por_hora") && (Number(valor) < 1 || Number(valor) > 100)) {
       redirect(`${RUTA}?error=datos`);
     }
     if (!igual(valor, f.valor)) cambios.push({ clave: f.clave, valor });

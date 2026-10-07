@@ -37,7 +37,8 @@ export async function proxy(request: NextRequest) {
     return redirigir("/menu");
   }
 
-  response.headers.set("Content-Security-Policy", csp);
+  // Los PDF se muestran dentro de la propia app (visor): solo pueden enmarcarse desde el mismo sitio.
+  response.headers.set("Content-Security-Policy", path.startsWith("/api/archivos/") ? "frame-ancestors 'self'" : csp);
   return response;
 }
 

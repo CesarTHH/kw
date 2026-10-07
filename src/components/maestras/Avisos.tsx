@@ -8,6 +8,8 @@ const OK: Record<string, string> = {
   rechazada: "Solicitud rechazada.",
   password: "Se generó una contraseña temporal.",
   reenviado: "Correo puesto en cola para reenviarse. Este es el nuevo envío.",
+  publicado: "Documento publicado. Ya lo ven los usuarios.",
+  restaurado: "Se volvió a publicar la versión elegida.",
 };
 const ERROR: Record<string, string> = {
   permiso: "No tienes permiso para esta acción.",
@@ -18,6 +20,8 @@ const ERROR: Record<string, string> = {
   regla: "La operación no cumple una regla del sistema.",
   guardar: "No se pudo guardar. Inténtalo de nuevo.",
   noexiste: "El registro no existe o no tienes acceso.",
+  archivo: "El archivo no es un PDF válido.",
+  tamano: "El archivo supera el tamaño máximo permitido.",
 };
 
 export function Avisos({ ok, error, detalle }: { ok?: string; error?: string; detalle?: string }) {

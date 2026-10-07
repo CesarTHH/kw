@@ -97,8 +97,9 @@ export default async function PaginaConfiguracion({
                 ) : (
                   <input
                     name={k}
-                    type={meta.tipo === "correo" ? "email" : meta.tipo === "bytes" ? "number" : meta.tipo === "url" ? "url" : "text"}
-                    min={meta.tipo === "bytes" ? 1024 : undefined}
+                    type={meta.tipo === "correo" ? "email" : meta.tipo === "bytes" || meta.tipo === "entero" ? "number" : meta.tipo === "url" ? "url" : "text"}
+                    min={meta.tipo === "bytes" ? 1024 : meta.tipo === "entero" ? 1 : undefined}
+                    max={meta.tipo === "entero" ? 100 : undefined}
                     defaultValue={valor}
                     maxLength={300}
                     disabled={bloqueado}

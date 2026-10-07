@@ -13,6 +13,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { AwsClient } from "npm:aws4fetch@1.0.20";
+import { aBase64, construirMime, type Adjunto } from "../_shared/mime.ts";
 import { renderizar, type Plantilla } from "../_shared/plantilla.ts";
 
 const MAX_INTENTOS = 6;
@@ -25,6 +26,8 @@ type Correo = {
   plantilla: string;
   datos: Record<string, unknown>;
   intentos: number;
+  adjuntos?: { bucket: string; ruta: string; nombre: string; tipo: string }[];
+  responder_a?: string | null;
 };
 type Destinatario = { id: string; correo: string; tipo: string; estado: string };
 type Resultado = "enviado" | "registrado" | "fallido" | "reintentar" | "detener";
@@ -74,20 +77,27 @@ async function enviarSes(
   html: string,
   texto: string,
   correoId: string,
+  responderA: string | null,
+  adjuntos: Adjunto[],
 ): Promise<{ resultado: Resultado; messageId?: string; detalle?: string }> {
   try {
+    // Con adjuntos se envía el mensaje MIME completo; sin adjuntos, el formato simple de SES.
+    const contenido = adjuntos.length
+      ? { Raw: { Data: aBase64(new TextEncoder().encode(construirMime({ de, para, asunto, html, texto, responderA, adjuntos }))) } }
+      : {
+          Simple: {
+            Subject: { Data: asunto, Charset: "UTF-8" },
+            Body: { Html: { Data: html, Charset: "UTF-8" }, Text: { Data: texto, Charset: "UTF-8" } },
+          },
+        };
     const r = await aws!.fetch(`https://email.${region}.amazonaws.com/v2/email/outbound-emails`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         FromEmailAddress: de,
         Destination: { ToAddresses: [para] },
-        Content: {
-          Simple: {
-            Subject: { Data: asunto, Charset: "UTF-8" },
-            Body: { Html: { Data: html, Charset: "UTF-8" }, Text: { Data: texto, Charset: "UTF-8" } },
-          },
-        },
+        ReplyToAddresses: responderA && CORREO_VALIDO.test(responderA) ? [responderA] : undefined,
+        Content: contenido,
         ConfigurationSetName: configurationSet,
         EmailTags: [{ Name: "correo_id", Value: correoId }],
       }),
@@ -161,6 +171,16 @@ async function procesar(
 
   const enviar = cfg.modo === "enviar" && aws !== null && CORREO_VALIDO.test(cfg.direccion);
   const de = remitente(cfg.nombre, cfg.direccion);
+  // Los adjuntos se descargan una vez por correo (solo si de verdad se va a enviar).
+  const adjuntos: Adjunto[] = [];
+  if (enviar && (dests ?? []).length) {
+    for (const a of c.adjuntos ?? []) {
+      if (a.bucket !== "contacto") continue;
+      const { data: archivo, error } = await supabase.storage.from(a.bucket).download(a.ruta);
+      if (error || !archivo) throw new Error(`No se pudo leer el adjunto ${a.nombre}`);
+      adjuntos.push({ nombre: a.nombre, tipo: a.tipo, datos: new Uint8Array(await archivo.arrayBuffer()) });
+    }
+  }
   let pendientes = 0;
   let detener = false;
   let ultimoError: string | null = null;
@@ -177,7 +197,7 @@ async function procesar(
       pendientes++;
       continue;
     }
-    const r = await enviarSes(de, d.correo, armado.asunto, armado.html, armado.texto, c.id);
+    const r = await enviarSes(de, d.correo, armado.asunto, armado.html, armado.texto, c.id, c.responder_a ?? null, adjuntos);
     if (r.resultado === "detener") {
       detener = true;
       pendientes++;
