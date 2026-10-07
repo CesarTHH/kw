@@ -65,7 +65,7 @@ export function tablaHtml(columnas: Columna[], filas: Record<string, unknown>[])
 export function tablaTexto(columnas: Columna[], filas: Record<string, unknown>[]): string {
   if (!columnas.length) return "";
   const lineas = [columnas.map((c) => c.titulo).join(" | ")];
-  for (const f of filas) lineas.push(columnas.map((c) => formatearValor(f[c.clave])).join(" | "));
+  for (const f of filas) lineas.push(columnas.map((c) => formatearValor(f[c.clave]).replace(/\s*\n\s*/g, ", ")).join(" | "));
   return lineas.join("\n");
 }
 

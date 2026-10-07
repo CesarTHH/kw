@@ -67,4 +67,8 @@ describe("plantillas de correo", () => {
   it("arma la tabla en texto plano", () => {
     expect(tablaTexto(columnas, [])).toBe("Fecha | Servicio | Cantidad");
   });
+
+  it("en texto plano une la composición en una sola línea", () => {
+    expect(tablaTexto([{ clave: "c", titulo: "C" }], [{ c: "2 FRUTA\n1 GASEOSA" }])).toBe("C\n2 FRUTA, 1 GASEOSA");
+  });
 });

@@ -179,11 +179,12 @@ create policy refrigerio_items_leer on public.refrigerio_pedido_items for select
 create policy refrigerio_movimientos_leer on public.refrigerio_movimientos for select to authenticated
   using (exists (select 1 from public.refrigerio_pedidos p where p.id = pedido_id and seguridad.puede_ver_refrigerios(p.empresa_id, p.comedor_id)));
 
--- Los envíos de refrigerios también se ven con el permiso de refrigerios.
+-- Cada módulo ve solo sus envíos: los de refrigerios con el permiso de refrigerios.
 drop policy envios_leer on public.envios;
 create policy envios_leer on public.envios for select to authenticated
   using (
-    ((select seguridad.tiene_permiso('raciones', 'ver')) or (select seguridad.tiene_permiso('refrigerios', 'ver')))
+    case when tipo = 'refrigerio' then (select seguridad.tiene_permiso('refrigerios', 'ver'))
+         else (select seguridad.tiene_permiso('raciones', 'ver')) end
     and ((select seguridad.mi_alcance()) = 'todas' or empresa_id = (select seguridad.mi_empresa_id()))
   );
 
@@ -336,6 +337,7 @@ as $$
     'estandar_items', coalesce((
       select jsonb_agg(jsonb_build_object('producto_id', e.producto_id, 'cantidad', e.cantidad) order by p.orden, p.nombre)
       from public.refrigerio_estandar_items e join public.refrigerio_productos p on p.id = e.producto_id
+      where p.activo
     ), '[]'::jsonb),
     'productos', coalesce((
       select jsonb_agg(jsonb_build_object('id', p.id, 'nombre', p.nombre,
@@ -412,6 +414,8 @@ begin
   end if;
 
   perform pg_advisory_xact_lock(hashtext('refrigerios:' || p_empresa_id::text));
+  -- La composición estándar no cambia mientras se envía (ver guardar_estandar_refrigerio).
+  perform pg_advisory_xact_lock_shared(hashtext('refrigerio_estandar'));
   v_huella := md5('refrigerio|' || p_empresa_id::text || '|' || coalesce(p_pedidos::text, '') || '|' || coalesce(v_motivo, ''));
   select id, usuario_id, huella into v_envio, v_dueno, v_huella_ant from public.envios where clave_idempotencia = p_clave;
   if found then
@@ -468,6 +472,9 @@ begin
     if (v_tipo = 'estandar') <> (jsonb_array_length(coalesce(p -> 'items', '[]'::jsonb)) = 0) then
       raise exception 'El pedido % no coincide con su tipo (estándar sin productos adicionales; especial con productos)', v_n using errcode = '22023';
     end if;
+    if (select count(*) <> count(distinct x ->> 'producto_id') from jsonb_array_elements(coalesce(p -> 'items', '[]'::jsonb)) x) then
+      raise exception 'El pedido % repite un producto', v_n using errcode = '22023';
+    end if;
 
     v_plazo := seguridad.validar_plazo('refrigerio', v_fecha);
     if v_plazo is not null then
@@ -487,7 +494,8 @@ begin
 
     v_precio_u := 0;
     if v_tipo in ('estandar', 'estandar_mas_especial') then
-      if v_precio_est is null or not exists (select 1 from public.refrigerio_estandar_items) then
+      if v_precio_est is null or not exists (select 1 from public.refrigerio_estandar_items e
+                                             join public.refrigerio_productos pr on pr.id = e.producto_id where pr.activo) then
         raise exception 'El refrigerio estándar no tiene precio o composición vigente' using errcode = '22023';
       end if;
       v_precio_u := v_precio_est;
@@ -501,7 +509,8 @@ begin
     if v_tipo in ('estandar', 'estandar_mas_especial') then
       insert into public.refrigerio_pedido_items (pedido_id, producto_id, origen, cantidad_por_refrigerio, precio_unitario)
       select v_pedido, e.producto_id, 'estandar', e.cantidad, 0
-      from public.refrigerio_estandar_items e;
+      from public.refrigerio_estandar_items e join public.refrigerio_productos pr on pr.id = e.producto_id
+      where pr.activo;
     end if;
 
     for it in select value from jsonb_array_elements(coalesce(p -> 'items', '[]'::jsonb)) loop
@@ -517,9 +526,7 @@ begin
         raise exception 'Un producto del pedido % no está disponible o no tiene precio vigente', v_n using errcode = '22023';
       end if;
       insert into public.refrigerio_pedido_items (pedido_id, producto_id, origen, cantidad_por_refrigerio, precio_unitario)
-      values (v_pedido, (it ->> 'producto_id')::uuid, 'especial', (it ->> 'cantidad')::int, v_precio_p)
-      on conflict (pedido_id, producto_id, origen)
-      do update set cantidad_por_refrigerio = least(100, public.refrigerio_pedido_items.cantidad_por_refrigerio + excluded.cantidad_por_refrigerio);
+      values (v_pedido, (it ->> 'producto_id')::uuid, 'especial', (it ->> 'cantidad')::int, v_precio_p);
       v_precio_u := v_precio_u + v_precio_p * (it ->> 'cantidad')::int;
     end loop;
 
@@ -661,6 +668,32 @@ begin
   return v_envio;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Guardar la composición estándar en una sola transacción (Catálogos).
+-- p_items: [{producto_id, cantidad}]
+-- ---------------------------------------------------------------------------
+create or replace function public.guardar_estandar_refrigerio(p_items jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if not seguridad.tiene_permiso('maestras.catalogos', 'editar') then
+    raise exception 'No tienes permiso para editar catálogos' using errcode = '42501';
+  end if;
+  if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) not between 1 and 100 then
+    raise exception 'El refrigerio estándar debe tener al menos un producto' using errcode = '22023';
+  end if;
+  perform pg_advisory_xact_lock(hashtext('refrigerio_estandar'));
+  delete from public.refrigerio_estandar_items where true;
+  insert into public.refrigerio_estandar_items (producto_id, cantidad)
+  select (x ->> 'producto_id')::uuid, (x ->> 'cantidad')::int from jsonb_array_elements(p_items) x;
+end;
+$$;
+revoke execute on function public.guardar_estandar_refrigerio(jsonb) from public, anon;
+grant execute on function public.guardar_estandar_refrigerio(jsonb) to authenticated;
 
 revoke execute on function public.enviar_refrigerios(uuid, jsonb, uuid, text) from public, anon;
 revoke execute on function public.reducir_refrigerio(uuid, int, uuid, text) from public, anon;

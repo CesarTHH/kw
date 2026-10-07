@@ -1,7 +1,7 @@
 -- Pruebas de refrigerios (pgTAP).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(25);
 
 -- 1-4. Plazos
 select is(seguridad.validar_plazo('refrigerio', '2026-10-15', '2026-10-14 16:59:59'), null, 'Refrigerio: hasta las 16:59:59 del día anterior');
@@ -95,6 +95,39 @@ select throws_ok($$select public.reducir_refrigerio((select id from public.refri
 -- 18. Otra empresa no ve los pedidos
 select pg_temp.como('cb');
 select is((select count(*)::int from public.refrigerio_pedidos), 0, 'Contratista B no ve los refrigerios de A');
+
+-- 19-20. Alcance y motivo
+select throws_ok($$select public.enviar_refrigerios((select alfa from k),
+  pg_temp.pedido((select d3 from k), (select km37 from k), 'estandar', 1), gen_random_uuid())$$,
+  '42501', null, 'Contratista B no pide refrigerios a nombre de A');
+select pg_temp.como('ca');
+select throws_ok($$select public.enviar_refrigerios((select alfa from k),
+  pg_temp.pedido((select d3 from k), (select km37 from k), 'estandar', 1), gen_random_uuid(), 'Pedido urgente')$$,
+  '42501', null, 'Solo el Superadmin envía con motivo');
+
+-- 21. Producto repetido
+select throws_ok($$select public.enviar_refrigerios((select alfa from k),
+  pg_temp.pedido((select d3 from k), (select km37 from k), 'especial', 1,
+    jsonb_build_array(jsonb_build_object('producto_id', (select fruta from k), 'cantidad', 80),
+                      jsonb_build_object('producto_id', (select fruta from k), 'cantidad', 80))), gen_random_uuid())$$,
+  '22023', 'El pedido 1 repite un producto', 'Un producto no se repite dentro del pedido');
+
+-- 22. Envíos por módulo: los de refrigerios no se ven sin el permiso de refrigerios
+set local role postgres;
+create temporary table rol_ca as select rol_id from public.perfiles where id = (select id from u where clave = 'ca');
+delete from public.rol_permisos where menu_codigo = 'refrigerios' and rol_id = (select rol_id from rol_ca);
+select pg_temp.como('ca');
+select is((select count(*)::int from public.envios where tipo = 'refrigerio'), 0, 'Sin permiso de refrigerios no ve esos envíos');
+
+-- 23-25. Superadmin: fuera de plazo con motivo; composición estándar atómica
+select pg_temp.como('sa', 'aal2');
+select lives_ok($$select public.enviar_refrigerios((select alfa from k),
+  pg_temp.pedido((now() at time zone 'America/Lima')::date, (select km37 from k), 'estandar', 2), gen_random_uuid(), 'Visita de gerencia')$$,
+  'El Superadmin pide para hoy con motivo');
+select lives_ok($$select public.guardar_estandar_refrigerio(jsonb_build_array(jsonb_build_object('producto_id', (select gaseosa from k), 'cantidad', 2)))$$,
+  'Guardar la composición estándar');
+select is((select string_agg(cantidad::text, ',') from public.refrigerio_estandar_items), '2',
+  'La composición estándar se reemplaza completa');
 
 select * from finish();
 rollback;

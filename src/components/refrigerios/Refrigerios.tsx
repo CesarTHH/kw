@@ -394,7 +394,7 @@ export function Refrigerios({ datos, borrador }: { datos: DatosRefrigerios; borr
           Vas a enviar <strong>{pedidos.length}</strong> pedidos por un total de <strong>{totalRefrigerios}</strong> refrigerios (
           {soles(totalSoles)} sin IGV) para <strong>{empresa.nombre}</strong>.
         </p>
-        <p>El precio queda fijado al enviar. Esta acción no se puede deshacer; después solo se puede reducir con 48 horas de anticipación.</p>
+        <p>El precio queda fijado al enviar. Esta acción no se puede deshacer; después solo se puede reducir con {config.horasReduccionRefrigerio} horas de anticipación.</p>
         {saltarPlazo && <p className="text-red-800">Se registrará fuera de plazo con el motivo indicado.</p>}
       </Confirmar>
     </div>

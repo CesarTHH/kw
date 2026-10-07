@@ -51,16 +51,24 @@ export default async function Pagina() {
 
 async function Contenido({ empresa, superadmin, enviar }: { empresa: { id: string; nombre: string }; superadmin: boolean; enviar: boolean }) {
   const supabase = await crearClienteServidor();
-  const [comedoresR, turnosR, preciosR, borradorR, config, ahora] = await Promise.all([
+  const [comedoresR, turnosR, ventanaR, preciosR, borradorR, config, ahora] = await Promise.all([
     supabase.from("comedores").select("id, nombre").eq("activo", true).eq("habilitado_refrigerios", true).order("nombre"),
-    supabase.from("refrigerio_turnos").select("id, etiqueta").eq("activo", true).order("hora"),
+    supabase.from("refrigerio_turnos").select("id, etiqueta, hora").eq("activo", true).order("hora"),
+    supabase.from("config_horarios").select("regla, valor").eq("modulo", "refrigerio").in("regla", ["entrega_desde", "entrega_hasta"]),
     supabase.rpc("precios_refrigerio"),
     supabase.from("borradores").select("filas").eq("empresa_id", empresa.id).eq("modulo", "refrigerios").maybeSingle(),
     configPlazos(),
     horaOficial(),
   ]);
   const comedores = (comedoresR.data ?? []) as { id: string; nombre: string }[];
-  const turnos = (turnosR.data ?? []) as { id: string; etiqueta: string }[];
+  // Solo los turnos dentro de la ventana de entrega configurada (el servidor rechaza los demás).
+  const ventana = new Map(((ventanaR.data ?? []) as { regla: string; valor: unknown }[]).map((r) => [r.regla, String(r.valor)]));
+  const hhmm = (v: string | undefined, def: string) => (v && /^\d{2}:\d{2}/.test(v) ? v.slice(0, 5) : def);
+  const desde = hhmm(ventana.get("entrega_desde"), "06:00");
+  const hasta = hhmm(ventana.get("entrega_hasta"), "21:30");
+  const turnos = ((turnosR.data ?? []) as { id: string; etiqueta: string; hora: string }[])
+    .filter((t) => t.hora.slice(0, 5) >= desde && t.hora.slice(0, 5) <= hasta)
+    .map(({ id, etiqueta }) => ({ id, etiqueta }));
   const precios = ((preciosR.data as unknown as Precios | null) ?? PRECIOS_VACIOS) as Precios;
   const filas = (borradorR.data as { filas?: unknown } | null)?.filas;
   const borrador = Array.isArray(filas) ? (filas as PedidoBorrador[]) : [];

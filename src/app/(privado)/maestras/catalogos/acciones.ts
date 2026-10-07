@@ -152,11 +152,9 @@ export async function guardarEstandar(formData: FormData) {
   if (!items.length) redirect(retorno(RUTA, formData, { c, error: "datos" }));
 
   const supabase = await crearClienteServidor();
-  const { error: e1 } = await supabase.from("refrigerio_estandar_items").upsert(items, { onConflict: "producto_id" });
-  if (e1) redirect(retorno(RUTA, formData, { c, error: claveError(e1.code) }));
-  const ids = items.map((i) => i.producto_id);
-  const { error: e2 } = await supabase.from("refrigerio_estandar_items").delete().not("producto_id", "in", `(${ids.join(",")})`);
-  if (e2) redirect(retorno(RUTA, formData, { c, error: claveError(e2.code) }));
+  // Borra y graba en una sola transacción (no se mezcla con un envío en curso).
+  const { error } = await supabase.rpc("guardar_estandar_refrigerio", { p_items: items });
+  if (error) redirect(retorno(RUTA, formData, { c, error: claveError(error.code) }));
   revalidatePath(RUTA);
   redirect(retorno(RUTA, formData, { c, ok: "guardado" }));
 }
