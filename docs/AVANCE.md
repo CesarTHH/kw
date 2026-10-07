@@ -105,3 +105,13 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - 35 pruebas nuevas de base de datos (136 en total) y pruebas unitarias de plazos y reglas. Revisión de seguridad independiente: hallazgos corregidos.
 
 **Criterios por defecto pendientes de confirmar:** programar dos veces lo mismo suma (P13); el costo lo ven solo Admin y Superadmin (P12); la "proyección mensual" se muestra como total por mes (P14).
+
+## Fase 5: qué se entregó (07/10/2026)
+
+- **Catálogos de refrigerios** (Maestras → Catálogos): productos, precios con vigencia (sin solapes), turnos de entrega (9:30 am, 11:30 am, 6:00 pm por defecto), precio del estándar y composición del estándar.
+- **Solicitud de refrigerios:** rango de fechas, turno, tipo (estándar, especial, estándar + especial), encargado de recojo, comedor (solo los habilitados), cantidad y productos especiales. Grilla de previsualización editable que se guarda sola, con precio unitario y total en vivo.
+- **Precio y composición congelados al enviar:** el pedido guarda el precio vigente ese día aunque después cambie la tabla de precios.
+- **Plazos:** hasta las 17:00 del día anterior; reducir o anular hasta 48 horas antes del inicio del día. Ambos configurables. Solo el Superadmin registra fuera de plazo, con motivo.
+- **Pedidos registrados** con botón **Reducir** (reducir a 0 = anular). Cada envío y reducción deja auditoría y correo "Solicitud de refrigerios" con la tabla (fecha, comedor, turno, composición, cantidad, precio sin IGV, tipo, encargado).
+- Los usuarios contratistas **sí ven el precio** (confirmado por el cliente).
+- 25 pruebas nuevas de base de datos (161 en total) y pruebas unitarias de plazos y precios. Revisión independiente: hallazgos corregidos.

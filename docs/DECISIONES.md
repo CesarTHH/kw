@@ -33,3 +33,6 @@
 | D29 | 07/10/2026 | Los envíos de raciones de una misma empresa se procesan de a uno (bloqueo por empresa) | Evita bloqueos cruzados entre traslados simultáneos; el volumen es bajo | Aplicada |
 | D30 | 07/10/2026 | La clave de idempotencia guarda una huella del contenido: repetir lo mismo devuelve el envío original; otro contenido con la misma clave se rechaza | Un reintento no duplica ni pierde filas | Aplicada |
 | D31 | 07/10/2026 | Reducción y traslado: el plazo es N horas antes del inicio del día (48 h → hasta D−2 a las 23:59) | Regla configurable "horas de anticipación" | Aplicada |
+| D32 | 07/10/2026 | Refrigerios: el precio lo ven también los contratistas (pantalla y correo) | Confirmado por el cliente; igual que el correo actual | Aplicada |
+| D33 | 07/10/2026 | Refrigerios: el precio y la composición se congelan con los valores vigentes el día del envío | Histórico de precios estable | Aplicada |
+| D34 | 07/10/2026 | Cada módulo ve solo sus envíos (raciones o refrigerios) según su permiso | Mínimo privilegio | Aplicada |
