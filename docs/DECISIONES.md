@@ -30,3 +30,6 @@
 | D26 | 06/10/2026 | Se envía un correo por destinatario (no uno con todos en "Para") | Estado exacto por destinatario, rebotes bien asignados y, en sandbox, una dirección no verificada no bloquea a las demás. El costo en SES es el mismo | Aplicada |
 | D27 | 06/10/2026 | Los correos de bienvenida y aprobación no llevan contraseñas ni enlaces con token: indican cómo crear la contraseña con "¿Olvidaste tu contraseña?" | Nada secreto queda guardado en el historial de correos | Aplicada |
 | D28 | 06/10/2026 | La Edge Function se protege con un secreto guardado solo en Supabase Vault | No hay claves en el código ni en la configuración de la función | Aplicada |
+| D29 | 07/10/2026 | Los envíos de raciones de una misma empresa se procesan de a uno (bloqueo por empresa) | Evita bloqueos cruzados entre traslados simultáneos; el volumen es bajo | Aplicada |
+| D30 | 07/10/2026 | La clave de idempotencia guarda una huella del contenido: repetir lo mismo devuelve el envío original; otro contenido con la misma clave se rechaza | Un reintento no duplica ni pierde filas | Aplicada |
+| D31 | 07/10/2026 | Reducción y traslado: el plazo es N horas antes del inicio del día (48 h → hasta D−2 a las 23:59) | Regla configurable "horas de anticipación" | Aplicada |

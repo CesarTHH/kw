@@ -87,3 +87,21 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - **Eventos de SES** (entregado, rebote, queja) por SNS con verificación de firma. Las direcciones que rebotan o marcan spam quedan bloqueadas y se listan en "Direcciones bloqueadas".
 - Probado en el proyecto de pruebas: un correo encolado se procesó en menos de un minuto.
 - 22 pruebas nuevas de base de datos (99 en total) y pruebas unitarias de plantillas y firma SNS.
+
+## Fase 4: qué se entregó (07/10/2026)
+
+- **Modelo de raciones:** cada "Enviar" crea un envío con sus movimientos (programación, adición, reducción, traslado), que no se editan ni se borran. Los saldos por día se actualizan en la misma operación y nunca quedan por debajo de 0. Un doble clic no duplica el envío.
+- **Reglas de horario** en una sola función (TypeScript) con su espejo exacto en la base de datos, probadas en los bordes (16:59:59, 17:00:00, cambio de semana, fin de mes y de año):
+  - programación de la semana siguiente hasta el miércoles 23:59, máximo 6 semanas, la semana en curso no;
+  - adiciones hasta las 17:00 del día anterior;
+  - reducciones y traslados hasta 48 horas antes del inicio del día.
+  - Solo el Superadmin puede registrar fuera de plazo, con un motivo que queda en la auditoría.
+- **Dashboard:** raciones del día por servicio (al elegir uno, el detalle por comedor), total del día y del mes, gráfico de la semana. Admin y Superadmin ven además el costo estimado con la tarifa vigente.
+- **Consulta detallada:** filtros por rango de fechas, proyecto, área, frente, comedor y servicio; vista de raciones vigentes o de movimientos; exportación a Excel.
+- **Programa / Adiciona-Reduce / Traslada:** formularios con listas encadenadas (proyecto → área → frente; comedor → servicios que ofrece), grilla de previsualización editable que se guarda sola, grilla de raciones registradas, confirmación antes de enviar y correo con la tabla de registros.
+  - Las reducciones nunca superan lo registrado.
+  - Los traslados solo van a comedores del mismo sector y a servicios compatibles.
+- **Selector de empresa** para Admin y Superadmin. El usuario de comedor solo ve su comedor.
+- 35 pruebas nuevas de base de datos (136 en total) y pruebas unitarias de plazos y reglas. Revisión de seguridad independiente: hallazgos corregidos.
+
+**Criterios por defecto pendientes de confirmar:** programar dos veces lo mismo suma (P13); el costo lo ven solo Admin y Superadmin (P12); la "proyección mensual" se muestra como total por mes (P14).
