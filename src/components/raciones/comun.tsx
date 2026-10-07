@@ -74,17 +74,22 @@ export function useSaldos(empresaId: string, desde: string, hasta: string) {
 
 /** Envío con confirmación, clave de idempotencia y motivo opcional (Superadmin). */
 export function useEnvio(modulo: ModuloBorrador, empresaId: string) {
-  const [clave, setClave] = useState(nuevoId);
+  // La clave se mantiene mientras el contenido no cambie: reintentar lo mismo no duplica;
+  // si el usuario cambia la grilla, el envío es otro y lleva otra clave.
+  const ultimo = useRef<{ contenido: string; clave: string } | null>(null);
   const [pendiente, iniciar] = useTransition();
   const [resultado, setResultado] = useState<ResultadoEnvio | null>(null);
   const enviar = (filas: FilaBorrador[], motivo: string | undefined, alTerminar: (ok: boolean) => void) => {
     setResultado(null);
+    const contenido = JSON.stringify([filas, motivo ?? ""]);
+    if (ultimo.current?.contenido !== contenido) ultimo.current = { contenido, clave: nuevoId() };
+    const clave = ultimo.current.clave;
     iniciar(async () => {
       const r = await enviarRaciones(modulo, empresaId, filas, clave, motivo).catch(
         (): ResultadoEnvio => ({ ok: false, error: "No se pudo conectar. Revisa tu conexión e inténtalo de nuevo." }),
       );
       setResultado(r);
-      if (r.ok) setClave(nuevoId());
+      if (r.ok) ultimo.current = null;
       alTerminar(r.ok);
     });
   };

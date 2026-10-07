@@ -115,7 +115,8 @@ export function Programar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold text-oliva">Programación de raciones · {empresa.nombre}</h2>
           <p className="text-xs text-gris-medio">
-            Puedes programar del {ddmmaaaa(primera)} al {ddmmaaaa(ultima)}. La semana siguiente cierra el miércoles a las{" "}
+            Puedes programar del {ddmmaaaa(primera)} al {ddmmaaaa(ultima)}. La semana siguiente cierra el{" "}
+            {["", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][config.cierre.diaSemana] ?? ""} a las{" "}
             {config.cierre.hora}.
           </p>
         </div>

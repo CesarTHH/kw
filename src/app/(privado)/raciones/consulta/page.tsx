@@ -5,7 +5,7 @@ import { Paginacion } from "@/components/maestras/Paginacion";
 import { obtenerMenu, requerirPermiso } from "@/lib/auth";
 import { numeroPagina, rango, urlCon } from "@/lib/busqueda";
 import { puede } from "@/lib/permisos";
-import { aplicarFiltros, leerFiltros, SELECT_MOVIMIENTOS, SELECT_SALDOS, TIPOS_MOVIMIENTO, type FilaConsulta } from "@/lib/raciones/consulta";
+import { aplicarFiltros, leerFiltros, selectMovimientos, selectSaldos, TIPOS_MOVIMIENTO, type FilaConsulta } from "@/lib/raciones/consulta";
 import { cargarCatalogo, empresaSeleccionada, horaOficial } from "@/lib/raciones/servidor";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 
@@ -32,11 +32,11 @@ export default async function Consulta({ searchParams }: { searchParams: Promise
   const consulta = async (): Promise<{ data: unknown; count: number | null }> => {
     const empresaId = empresa?.id ?? null;
     if (movimientos) {
-      const q = supabase.from("racion_movimientos").select(SELECT_MOVIMIENTOS, { count: "exact" }).order("fecha").order("id");
+      const q = supabase.from("racion_movimientos").select(selectMovimientos(f), { count: "exact" }).order("fecha").order("id");
       const { data, count } = await aplicarFiltros(q, f, empresaId).range(ini, fin);
       return { data, count };
     }
-    const q = supabase.from("racion_saldos").select(SELECT_SALDOS, { count: "exact" }).gt("cantidad", 0).order("fecha").order("comedor_id");
+    const q = supabase.from("racion_saldos").select(selectSaldos(f), { count: "exact" }).gt("cantidad", 0).order("fecha").order("comedor_id");
     const { data, count } = await aplicarFiltros(q, f, empresaId).range(ini, fin);
     return { data, count };
   };

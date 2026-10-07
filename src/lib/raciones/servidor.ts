@@ -41,7 +41,9 @@ export async function horaOficial(): Promise<string> {
   const supabase = await crearClienteServidor();
   const { data } = await supabase.rpc("hora_servidor").maybeSingle();
   const local = (data as { ahora_local?: string } | null)?.ahora_local;
-  return local ? local.replace(" ", "T").slice(0, 19) : new Date().toISOString().slice(0, 19);
+  if (local) return local.replace(" ", "T").slice(0, 19);
+  // Respaldo: hora de Lima calculada aquí (Perú no tiene horario de verano).
+  return new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 19);
 }
 
 export async function configPlazos(): Promise<ConfigPlazos> {

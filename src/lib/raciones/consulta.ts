@@ -45,10 +45,18 @@ export const TIPOS_MOVIMIENTO: Record<string, string> = {
   migracion: "Histórico",
 };
 
-export const SELECT_SALDOS =
-  "empresa_id, fecha, cantidad, frente_id, comedor_id, servicio_id, empresas(nombre_corto, ruc), frentes_trabajo!inner(nombre, proyecto_id, area_id, proyectos(nombre), areas(nombre)), comedores(nombre), servicios(nombre)";
-export const SELECT_MOVIMIENTOS =
-  "id, empresa_id, fecha, cantidad, tipo_movimiento, envio_id, frente_id, comedor_id, servicio_id, empresas(nombre_corto, ruc), envios(enviado_en, fuera_de_plazo), frentes_trabajo!inner(nombre, proyecto_id, area_id, proyectos(nombre), areas(nombre)), comedores(nombre), servicios(nombre)";
+/**
+ * Columnas a leer. El frente se une con !inner solo si se filtra por proyecto o área:
+ * así no desaparecen raciones de un frente que luego se quitó a la empresa.
+ */
+export function selectSaldos(f: FiltrosConsulta): string {
+  const frente = f.proyecto || f.area ? "frentes_trabajo!inner" : "frentes_trabajo";
+  return `empresa_id, fecha, cantidad, frente_id, comedor_id, servicio_id, empresas(nombre_corto, ruc), ${frente}(nombre, proyecto_id, area_id, proyectos(nombre), areas(nombre)), comedores(nombre), servicios(nombre)`;
+}
+export function selectMovimientos(f: FiltrosConsulta): string {
+  const frente = f.proyecto || f.area ? "frentes_trabajo!inner" : "frentes_trabajo";
+  return `id, empresa_id, fecha, cantidad, tipo_movimiento, envio_id, frente_id, comedor_id, servicio_id, empresas(nombre_corto, ruc), envios(enviado_en, fuera_de_plazo), ${frente}(nombre, proyecto_id, area_id, proyectos(nombre), areas(nombre)), comedores(nombre), servicios(nombre)`;
+}
 
 export type FilaConsulta = {
   id?: number;

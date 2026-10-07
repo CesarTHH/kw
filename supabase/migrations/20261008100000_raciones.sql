@@ -18,7 +18,9 @@ create table public.envios (
   total_filas         int not null default 0,
   total_raciones      int not null default 0,
   fuera_de_plazo      boolean not null default false,
-  motivo_excepcion    text check (length(motivo_excepcion) <= 500)
+  motivo_excepcion    text check (length(motivo_excepcion) <= 500),
+  -- Huella del contenido: la misma clave con otro contenido se rechaza.
+  huella              text
 );
 create index on public.envios (empresa_id, enviado_en desc);
 
@@ -115,7 +117,17 @@ create policy saldos_leer on public.racion_saldos for select to authenticated
 
 create policy borradores_propios on public.borradores for all to authenticated
   using (usuario_id = (select auth.uid()) and (select seguridad.usuario_activo()))
-  with check (usuario_id = (select auth.uid()) and (select seguridad.usuario_activo()) and seguridad.puede_ver_empresa(empresa_id));
+  with check (
+    usuario_id = (select auth.uid())
+    and (select seguridad.usuario_activo())
+    and seguridad.puede_ver_empresa(empresa_id)
+    and (select seguridad.mi_alcance()) in ('empresa', 'todas')
+    and seguridad.tiene_permiso(
+          case modulo when 'programar' then 'raciones.programar'
+                      when 'adicionar_reducir' then 'raciones.adicionar_reducir'
+                      else 'raciones.trasladar' end, 'enviar')
+    and pg_column_size(filas) < 300000
+  );
 
 create trigger borradores_updated_at before update on public.borradores
   for each row execute function seguridad.trg_updated_at();
@@ -356,6 +368,8 @@ declare
   v_correo     text;
   v_plantilla  text;
   v_registros  jsonb := '[]'::jsonb;
+  v_huella     text;
+  v_huella_ant text;
 begin
   select * into ctx from seguridad.contexto() c where c.activo;
   if not found then
@@ -382,12 +396,20 @@ begin
   if p_clave is null then
     raise exception 'Falta la clave del envío' using errcode = '22023';
   end if;
+  if exists (select 1 from public.perfiles where id = ctx.usuario_id and debe_cambiar_password) then
+    raise exception 'Debes cambiar tu contraseña antes de continuar' using errcode = '42501';
+  end if;
 
-  -- Idempotencia: el mismo envío repetido devuelve el original.
-  select id, usuario_id into v_envio, v_dueno from public.envios where clave_idempotencia = p_clave;
+  -- Un envío a la vez por empresa: evita bloqueos cruzados entre envíos simultáneos
+  -- (por ejemplo, dos traslados en sentidos opuestos).
+  perform pg_advisory_xact_lock(hashtext('raciones:' || p_empresa_id::text));
+
+  -- Idempotencia: el mismo envío repetido devuelve el original; otra cosa con la misma clave, no.
+  v_huella := md5(p_tipo || '|' || p_empresa_id::text || '|' || coalesce(p_filas::text, ''));
+  select id, usuario_id, huella into v_envio, v_dueno, v_huella_ant from public.envios where clave_idempotencia = p_clave;
   if found then
-    if v_dueno is distinct from ctx.usuario_id then
-      raise exception 'Clave de envío no válida' using errcode = '22023';
+    if v_dueno is distinct from ctx.usuario_id or v_huella_ant is distinct from v_huella then
+      raise exception 'Este envío ya se registró con otro contenido. Revisa la consulta y vuelve a enviar.' using errcode = '22023';
     end if;
     return v_envio;
   end if;
@@ -404,14 +426,16 @@ begin
     raise exception 'El motivo debe tener entre 5 y 500 caracteres' using errcode = '22023';
   end if;
 
-  insert into public.envios (empresa_id, usuario_id, tipo, clave_idempotencia, motivo_excepcion)
-  values (p_empresa_id, ctx.usuario_id, p_tipo, p_clave, v_motivo)
+  insert into public.envios (empresa_id, usuario_id, tipo, clave_idempotencia, motivo_excepcion, huella)
+  values (p_empresa_id, ctx.usuario_id, p_tipo, p_clave, v_motivo, v_huella)
   returning id into v_envio;
 
   -- Orden fijo de las filas: evita bloqueos cruzados entre envíos simultáneos.
   for f in
     select value from jsonb_array_elements(p_filas)
-    order by value ->> 'fecha', value ->> 'frente_id', value ->> 'comedor_id', value ->> 'servicio_id'
+    -- Dentro de una misma combinación, primero las sumas y después las restas.
+    order by value ->> 'fecha', value ->> 'frente_id', value ->> 'comedor_id', value ->> 'servicio_id',
+             (value ->> 'cantidad')::int desc
   loop
     v_filas := v_filas + 1;
     begin
@@ -557,6 +581,23 @@ as $$
 $$;
 revoke execute on function public.plazos_raciones(text, date[]) from public, anon;
 grant execute on function public.plazos_raciones(text, date[]) to authenticated;
+
+-- Los números de los horarios deben ser enteros (horas, semanas): así la app y la base
+-- de datos interpretan siempre lo mismo.
+create or replace function seguridad.trg_config_horarios_enteros()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if jsonb_typeof(new.valor) = 'number' and (new.valor)::text !~ '^\d+$' then
+    raise exception 'El valor de % / % debe ser un número entero', new.modulo, new.regla using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+create trigger config_horarios_enteros before update on public.config_horarios
+  for each row execute function seguridad.trg_config_horarios_enteros();
 
 -- Resumen agregado para el dashboard. SECURITY INVOKER: respeta RLS (cada uno ve lo suyo).
 create or replace function public.resumen_raciones(p_desde date, p_hasta date, p_empresa uuid default null)

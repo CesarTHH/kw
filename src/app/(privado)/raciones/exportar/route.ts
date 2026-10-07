@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { obtenerContexto, permisoEnAccion } from "@/lib/auth";
 import { aCsv } from "@/lib/csv";
-import { aplicarFiltros, leerFiltros, SELECT_MOVIMIENTOS, SELECT_SALDOS, TIPOS_MOVIMIENTO, type FilaConsulta } from "@/lib/raciones/consulta";
+import { aplicarFiltros, leerFiltros, selectMovimientos, selectSaldos, TIPOS_MOVIMIENTO, type FilaConsulta } from "@/lib/raciones/consulta";
 import { empresaSeleccionada, horaOficial } from "@/lib/raciones/servidor";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   const movimientos = f.vista === "movimientos";
   const empresaId = empresa?.id ?? null;
   const { data, error } = movimientos
-    ? await aplicarFiltros(supabase.from("racion_movimientos").select(SELECT_MOVIMIENTOS).order("fecha").order("id"), f, empresaId).limit(50_000)
-    : await aplicarFiltros(supabase.from("racion_saldos").select(SELECT_SALDOS).gt("cantidad", 0).order("fecha"), f, empresaId).limit(50_000);
+    ? await aplicarFiltros(supabase.from("racion_movimientos").select(selectMovimientos(f)).order("fecha").order("id"), f, empresaId).limit(50_000)
+    : await aplicarFiltros(supabase.from("racion_saldos").select(selectSaldos(f)).gt("cantidad", 0).order("fecha"), f, empresaId).limit(50_000);
   if (error) return new NextResponse("Error al exportar", { status: 500 });
 
   const filas = (data ?? []) as unknown as FilaConsulta[];

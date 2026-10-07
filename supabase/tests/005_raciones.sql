@@ -1,7 +1,7 @@
 -- Pruebas de raciones: plazos, envíos, saldos, traslados y seguridad (pgTAP).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 -- ---------------------------------------------------------------------------
 -- 1-11. Plazos con una hora fija (mismos casos que src/lib/raciones/plazos.test.ts)
@@ -99,6 +99,9 @@ select is(public.enviar_raciones('programacion', (select alfa from k),
   pg_temp.fila((select prog from k), (select f1 from k), (select km52 from k), (select almuerzo from k), 5),
   (select clave1 from k)), (select id from e1), 'Repetir el envío (doble clic) devuelve el mismo envío');
 select is(pg_temp.saldo((select prog from k), (select km52 from k), (select almuerzo from k)), 5, 'El envío repetido no suma dos veces');
+select throws_ok($$select public.enviar_raciones('programacion', (select alfa from k),
+  pg_temp.fila((select prog from k), (select f1 from k), (select km52 from k), (select almuerzo from k), 7),
+  (select clave1 from k))$$, '22023', null, 'La misma clave con otro contenido se rechaza');
 
 select lives_ok($$select public.enviar_raciones('adicion_reduccion', (select alfa from k),
   pg_temp.fila((select d3 from k), (select f1 from k), (select km52 from k), (select almuerzo from k), 3), gen_random_uuid())$$,

@@ -41,7 +41,7 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
   const registradas = useSaldos(empresa.id, fecha, fecha);
   const envio = useEnvio(MODULO, empresa.id);
   const saltarPlazo = ctx.superadmin && fuera;
-  const plazo = validarPlazo("traslado", fecha, ahora, config);
+  const plazo = /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? validarPlazo("traslado", fecha, ahora, config) : ({ ok: false, motivo: "Elige una fecha" } as const);
 
   /** Cantidad ya comprometida en la grilla por cada origen. */
   const comprometido = useMemo(() => {
@@ -129,7 +129,7 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
               value={fecha}
               min={saltarPlazo ? undefined : primera}
               onChange={(e) => {
-                setFecha(e.target.value);
+                if (e.target.value) setFecha(e.target.value);
                 setOrigen(null);
               }}
               className="campo"
