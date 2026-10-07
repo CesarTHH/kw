@@ -136,3 +136,27 @@ export async function guardarTrasladosSector(formData: FormData) {
   revalidatePath(RUTA);
   redirect(retorno(RUTA, formData, { c, ok: "guardado" }));
 }
+
+/** Composición del refrigerio estándar: cantidad por producto (0 = no se incluye). */
+export async function guardarEstandar(formData: FormData) {
+  const c = "estandar";
+  await exigirPermiso(formData, c);
+  const items: { producto_id: string; cantidad: number }[] = [];
+  for (const [k, v] of formData.entries()) {
+    if (!k.startsWith("p:") || typeof v !== "string") continue;
+    const id = k.slice(2);
+    const n = Number.parseInt(v, 10);
+    if (!esUuid(id) || !Number.isInteger(n) || n < 0 || n > 100) redirect(retorno(RUTA, formData, { c, error: "datos" }));
+    if (n > 0) items.push({ producto_id: id, cantidad: n });
+  }
+  if (!items.length) redirect(retorno(RUTA, formData, { c, error: "datos" }));
+
+  const supabase = await crearClienteServidor();
+  const { error: e1 } = await supabase.from("refrigerio_estandar_items").upsert(items, { onConflict: "producto_id" });
+  if (e1) redirect(retorno(RUTA, formData, { c, error: claveError(e1.code) }));
+  const ids = items.map((i) => i.producto_id);
+  const { error: e2 } = await supabase.from("refrigerio_estandar_items").delete().not("producto_id", "in", `(${ids.join(",")})`);
+  if (e2) redirect(retorno(RUTA, formData, { c, error: claveError(e2.code) }));
+  revalidatePath(RUTA);
+  redirect(retorno(RUTA, formData, { c, ok: "guardado" }));
+}

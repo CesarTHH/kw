@@ -17,6 +17,7 @@ import {
   cambiarEstadoCatalogo,
   guardarCatalogo,
   guardarComedorServicios,
+  guardarEstandar,
   guardarTrasladosSector,
 } from "./acciones";
 
@@ -26,6 +27,7 @@ const RUTA = "/maestras/catalogos";
 const MATRICES = [
   { codigo: "comedor_servicios", titulo: "Servicios por comedor" },
   { codigo: "traslados", titulo: "Traslados entre sectores" },
+  { codigo: "estandar", titulo: "Refrigerio estándar" },
 ];
 const FIN_INDEFINIDO = "2099-12-31";
 
@@ -66,6 +68,8 @@ export default async function PaginaCatalogos({
         <MatrizComedorServicios editar={editar} ok={sp.ok} error={sp.error} />
       ) : c === "traslados" ? (
         <MatrizTraslados editar={editar} ok={sp.ok} error={sp.error} />
+      ) : c === "estandar" ? (
+        <ComposicionEstandar editar={editar} ok={sp.ok} error={sp.error} />
       ) : (
         <ListaCatalogo cat={catalogoPorCodigo(c)!} sp={sp} editar={editar} exportar={exportar} />
       )}
@@ -98,6 +102,8 @@ function mostrar(f: Campo, v: unknown, opciones: Opciones): string {
       return Number(v).toFixed(2);
     case "fecha":
       return v === FIN_INDEFINIDO ? "Sin fin" : String(v);
+    case "hora":
+      return String(v).slice(0, 5);
     default:
       return String(v);
   }
@@ -286,6 +292,22 @@ function CampoCatalogo({
           {ayuda}
         </label>
       );
+    case "hora":
+      return (
+        <label className="block">
+          {etiqueta}
+          <input type="time" name={campo.nombre} defaultValue={texto.slice(0, 5)} required={campo.requerido} disabled={!editar} className="campo" />
+          {ayuda}
+        </label>
+      );
+    case "texto":
+      return (
+        <label className="block">
+          {etiqueta}
+          <input name={campo.nombre} defaultValue={texto} required={campo.requerido} maxLength={40} disabled={!editar} className="campo" />
+          {ayuda}
+        </label>
+      );
     case "fecha":
       return (
         <label className="block">
@@ -458,6 +480,62 @@ async function MatrizTraslados({ editar, ok, error }: { editar: boolean; ok?: st
         {editar && (
           <div className="flex justify-end p-4">
             <BotonEnviar pendiente="Guardando…">Guardar</BotonEnviar>
+          </div>
+        )}
+      </form>
+    </section>
+  );
+}
+
+async function ComposicionEstandar({ editar, ok, error }: { editar: boolean; ok?: string; error?: string }) {
+  const supabase = await crearClienteServidor();
+  const [{ data: productos }, { data: items }, { data: precio }] = await Promise.all([
+    supabase.from("refrigerio_productos").select("id, nombre").eq("activo", true).order("orden").order("nombre"),
+    supabase.from("refrigerio_estandar_items").select("producto_id, cantidad"),
+    supabase.rpc("precios_refrigerio"),
+  ]);
+  const cantidades = new Map(((items ?? []) as { producto_id: string; cantidad: number }[]).map((i) => [i.producto_id, i.cantidad]));
+  const precioEstandar = (precio as { estandar_precio?: number | null } | null)?.estandar_precio;
+  return (
+    <section className="max-w-2xl space-y-3">
+      <Avisos ok={ok} error={error} />
+      <p className="text-sm text-oliva">
+        Cantidad de cada producto en <strong>un</strong> refrigerio estándar (0 = no lo incluye). Precio vigente del estándar:{" "}
+        <strong>{precioEstandar != null ? `S/ ${Number(precioEstandar).toFixed(2)}` : "sin precio"}</strong> (se cambia en «Precio del estándar»).
+      </p>
+      <form action={guardarEstandar} className="overflow-hidden rounded-xl bg-white shadow">
+        <table className="tabla">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col" className="w-32">
+                Cantidad
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {((productos ?? []) as { id: string; nombre: string }[]).map((p) => (
+              <tr key={p.id}>
+                <td>{p.nombre}</td>
+                <td>
+                  <input
+                    type="number"
+                    name={`p:${p.id}`}
+                    min={0}
+                    max={100}
+                    defaultValue={cantidades.get(p.id) ?? 0}
+                    disabled={!editar}
+                    aria-label={`Cantidad de ${p.nombre}`}
+                    className="campo w-24 py-1!"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {editar && (
+          <div className="flex justify-end p-4">
+            <BotonEnviar pendiente="Guardando…">Guardar composición</BotonEnviar>
           </div>
         )}
       </form>

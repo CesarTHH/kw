@@ -5,7 +5,7 @@ import { nombreCatalogo } from "./esquemas";
  * Catálogos simples (lista + formulario). Una sola definición sirve para la
  * pantalla, la validación del servidor y la exportación a Excel.
  */
-export type TipoCampo = "nombre" | "codigo" | "entero" | "decimal" | "fecha" | "booleano" | "referencia";
+export type TipoCampo = "nombre" | "codigo" | "entero" | "decimal" | "fecha" | "booleano" | "referencia" | "hora" | "texto";
 
 export type Campo = {
   nombre: string;
@@ -129,6 +129,70 @@ export const CATALOGOS: Catalogo[] = [
     busqueda: [],
     tieneActivo: false,
   },
+  {
+    codigo: "refrigerio_productos",
+    titulo: "Productos de refrigerio",
+    singular: "producto",
+    tabla: "refrigerio_productos",
+    campos: [
+      { nombre: "nombre", etiqueta: "Nombre", tipo: "nombre", requerido: true },
+      { nombre: "orden", etiqueta: "Orden", tipo: "entero" },
+    ],
+    orden: [
+      { columna: "orden", asc: true },
+      { columna: "nombre", asc: true },
+    ],
+    busqueda: ["nombre"],
+    tieneActivo: true,
+  },
+  {
+    codigo: "refrigerio_precios",
+    titulo: "Precios de productos",
+    singular: "precio",
+    tabla: "refrigerio_producto_precios",
+    campos: [
+      {
+        nombre: "producto_id",
+        etiqueta: "Producto",
+        tipo: "referencia",
+        requerido: true,
+        referencia: { tabla: "refrigerio_productos", columna: "nombre" },
+      },
+      { nombre: "precio", etiqueta: "Precio sin IGV (S/)", tipo: "decimal", requerido: true },
+      { nombre: "vigente_desde", etiqueta: "Vigente desde", tipo: "fecha", requerido: true },
+      { nombre: "vigente_hasta", etiqueta: "Vigente hasta", tipo: "fecha", ayuda: "Vacío = sin fecha de fin" },
+    ],
+    orden: [{ columna: "vigente_desde", asc: false }],
+    busqueda: [],
+    tieneActivo: false,
+  },
+  {
+    codigo: "refrigerio_estandar_precios",
+    titulo: "Precio del estándar",
+    singular: "precio",
+    tabla: "refrigerio_estandar_precios",
+    campos: [
+      { nombre: "precio", etiqueta: "Precio del refrigerio estándar sin IGV (S/)", tipo: "decimal", requerido: true },
+      { nombre: "vigente_desde", etiqueta: "Vigente desde", tipo: "fecha", requerido: true },
+      { nombre: "vigente_hasta", etiqueta: "Vigente hasta", tipo: "fecha", ayuda: "Vacío = sin fecha de fin" },
+    ],
+    orden: [{ columna: "vigente_desde", asc: false }],
+    busqueda: [],
+    tieneActivo: false,
+  },
+  {
+    codigo: "refrigerio_turnos",
+    titulo: "Turnos de entrega",
+    singular: "turno",
+    tabla: "refrigerio_turnos",
+    campos: [
+      { nombre: "hora", etiqueta: "Hora", tipo: "hora", requerido: true, ayuda: "Dentro del horario de entrega configurado" },
+      { nombre: "etiqueta", etiqueta: "Texto que se muestra", tipo: "texto", requerido: true, ayuda: "Por ejemplo: 9:30 am" },
+    ],
+    orden: [{ columna: "hora", asc: true }],
+    busqueda: ["etiqueta"],
+    tieneActivo: true,
+  },
 ];
 
 export function catalogoPorCodigo(codigo: unknown): Catalogo | undefined {
@@ -168,6 +232,10 @@ function esquemaCampo(f: Campo): z.ZodType {
     }
     case "booleano":
       return z.boolean();
+    case "hora":
+      return z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:00)?$/, `${f.etiqueta}: hora no válida`);
+    case "texto":
+      return z.string().trim().min(1, `${f.etiqueta} es obligatorio`).max(40);
     case "referencia": {
       const id = z.uuid(`Elige ${f.etiqueta.toLowerCase()}`);
       return f.requerido ? id : z.preprocess(vacioANulo, id.nullable());
@@ -186,7 +254,7 @@ export function leerCatalogo(c: Catalogo, formData: FormData) {
   const resultado = z.object(forma).safeParse(crudo);
   if (!resultado.success) return resultado;
   const datos = { ...resultado.data } as Record<string, unknown>;
-  // Tarifas: sin fecha de fin = vigente "para siempre" (valor por defecto de la BD).
-  if (c.tabla === "servicio_tarifas" && datos.vigente_hasta === null) datos.vigente_hasta = "2099-12-31";
+  // Precios con vigencia: sin fecha de fin = vigente "para siempre" (valor por defecto de la BD).
+  if ("vigente_hasta" in datos && datos.vigente_hasta === null) datos.vigente_hasta = "2099-12-31";
   return { success: true as const, data: datos };
 }

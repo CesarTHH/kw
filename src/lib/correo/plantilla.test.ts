@@ -59,6 +59,11 @@ describe("plantillas de correo", () => {
     expect(c.texto).toBe("https://portal.example.com");
   });
 
+  it("respeta los saltos de línea de la composición en la tabla HTML", () => {
+    const c = renderizar({ asunto: "x", html: "{{tabla_registros}}", texto: "", columnas: [{ clave: "c", titulo: "C" }] }, { registros: [{ c: "2 FRUTA\n1 <GASEOSA>" }] }, globales);
+    expect(c.html).toContain("2 FRUTA<br>1 &lt;GASEOSA&gt;");
+  });
+
   it("arma la tabla en texto plano", () => {
     expect(tablaTexto(columnas, [])).toBe("Fecha | Servicio | Cantidad");
   });

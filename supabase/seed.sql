@@ -127,3 +127,34 @@ from (values
 join public.empresas e on e.ruc = v.ruc
 join public.frentes_trabajo f on f.nombre = v.frente
 on conflict do nothing;
+
+-- Refrigerios de EJEMPLO (productos del correo modelo; precios ficticios) ----------
+insert into public.refrigerio_productos (nombre, orden)
+select v.nombre, v.orden
+from (values
+  ('SANDWICH CÁRNICO EN PAPEL DE SEDA', 1), ('GASEOSA', 2), ('FRUTA', 3), ('FRUTOS SECOS', 4),
+  ('CHOCOLATE', 5), ('SACHET DE AJI', 6), ('SACHET DE MAYONESA', 7), ('SERVILLETAS', 8), ('BOLSA DE PAPEL', 9)
+) as v(nombre, orden)
+on conflict do nothing;
+
+insert into public.refrigerio_producto_precios (producto_id, precio, vigente_desde)
+select p.id, v.precio, date '2026-01-01'
+from (values
+  ('SANDWICH CÁRNICO EN PAPEL DE SEDA', 8.00), ('GASEOSA', 3.00), ('FRUTA', 1.50), ('FRUTOS SECOS', 2.50),
+  ('CHOCOLATE', 2.00), ('SACHET DE AJI', 0.20), ('SACHET DE MAYONESA', 0.20), ('SERVILLETAS', 0.05), ('BOLSA DE PAPEL', 0.30)
+) as v(nombre, precio)
+join public.refrigerio_productos p on p.nombre = v.nombre
+where not exists (select 1 from public.refrigerio_producto_precios x where x.producto_id = p.id);
+
+insert into public.refrigerio_estandar_items (producto_id, cantidad)
+select p.id, v.cantidad
+from (values
+  ('SANDWICH CÁRNICO EN PAPEL DE SEDA', 2), ('GASEOSA', 1), ('FRUTA', 2), ('FRUTOS SECOS', 1), ('CHOCOLATE', 1),
+  ('SACHET DE AJI', 1), ('SACHET DE MAYONESA', 1), ('SERVILLETAS', 3), ('BOLSA DE PAPEL', 1)
+) as v(nombre, cantidad)
+join public.refrigerio_productos p on p.nombre = v.nombre
+on conflict do nothing;
+
+insert into public.refrigerio_estandar_precios (precio, vigente_desde)
+select 29.78, date '2026-01-01'
+where not exists (select 1 from public.refrigerio_estandar_precios);

@@ -51,7 +51,10 @@ export function tablaHtml(columnas: Columna[], filas: Record<string, unknown>[])
     .map((f, i) => {
       const fondo = i % 2 === 0 ? "#ffffff" : COLOR_GRIS;
       const tds = columnas
-        .map((c) => `<td style="padding:6px 8px;border:1px solid #d8d9d2;background:${fondo}">${escaparHtml(formatearValor(f[c.clave]))}</td>`)
+        .map(
+          (c) =>
+            `<td style="padding:6px 8px;border:1px solid #d8d9d2;background:${fondo};vertical-align:top">${escaparHtml(formatearValor(f[c.clave])).replace(/\n/g, "<br>")}</td>`,
+        )
         .join("");
       return `<tr>${tds}</tr>`;
     })

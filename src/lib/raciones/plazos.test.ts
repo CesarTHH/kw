@@ -104,6 +104,24 @@ describe("programación semanal", () => {
   });
 });
 
+describe("refrigerios", () => {
+  it("registro hasta las 17:00 del día anterior (ni el mismo día ni el siguiente después de esa hora)", () => {
+    expect(validarPlazo("refrigerio", "2026-10-15", "2026-10-14T16:59:59", cfg)).toEqual(ok);
+    expect(validarPlazo("refrigerio", "2026-10-15", "2026-10-14T17:00:00", cfg)).toEqual({
+      ok: false,
+      motivo: "El plazo para refrigerios del 15/10 venció el 14/10 a las 17:00",
+    });
+    expect(validarPlazo("refrigerio", "2026-10-14", "2026-10-14T08:00", cfg).ok).toBe(false);
+  });
+  it("reducción con 48 horas", () => {
+    expect(validarPlazo("refrigerio_reduccion", "2026-10-15", "2026-10-12T23:59", cfg)).toEqual(ok);
+    expect(validarPlazo("refrigerio_reduccion", "2026-10-15", "2026-10-13T00:00", cfg)).toEqual({
+      ok: false,
+      motivo: "El plazo para reducir refrigerios el 15/10 venció el 12/10 a las 23:59",
+    });
+  });
+});
+
 describe("configuración desde la base de datos", () => {
   it("lee los valores y usa los por defecto si faltan", () => {
     const c = configDesdeFilas([

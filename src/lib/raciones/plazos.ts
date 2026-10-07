@@ -19,9 +19,13 @@ export type ConfigPlazos = {
   /** Reducciones / traslados: hasta N horas antes del inicio del día D. */
   horasReduccion: number;
   horasTraslado: number;
+  /** Refrigerios para el día D: hasta esta hora del día D-1. */
+  horaLimiteRefrigerio: string;
+  /** Reducción de refrigerios: N horas antes del inicio del día D. */
+  horasReduccionRefrigerio: number;
 };
 
-export type TipoPlazo = "programacion" | "adicion" | "reduccion" | "traslado";
+export type TipoPlazo = "programacion" | "adicion" | "reduccion" | "traslado" | "refrigerio" | "refrigerio_reduccion";
 export type Resultado = { ok: true } | { ok: false; motivo: string };
 
 export const CONFIG_POR_DEFECTO: ConfigPlazos = {
@@ -31,6 +35,8 @@ export const CONFIG_POR_DEFECTO: ConfigPlazos = {
   horaLimiteAdicion: "17:00",
   horasReduccion: 48,
   horasTraslado: 48,
+  horaLimiteRefrigerio: "17:00",
+  horasReduccionRefrigerio: 48,
 };
 
 const MIN_DIA = 1440;
@@ -95,10 +101,14 @@ function describirLimite(minutos: number, ultimoMinuto = false): string {
   return `${ddmm(fechaDeDia(dia))} a las ${hh}:${mm}`;
 }
 
-function plazoAdicion(fecha: string, ahora: number, cfg: ConfigPlazos): Resultado {
-  const limite = (diaNumero(fecha) - 1) * MIN_DIA + minutosHora(cfg.horaLimiteAdicion);
+function plazoDiaAnterior(fecha: string, ahora: number, hora: string, nombre: string): Resultado {
+  const limite = (diaNumero(fecha) - 1) * MIN_DIA + minutosHora(hora);
   if (ahora < limite) return { ok: true };
-  return { ok: false, motivo: `El plazo para adicionales del ${ddmm(fecha)} venció el ${describirLimite(limite)}` };
+  return { ok: false, motivo: `El plazo para ${nombre} del ${ddmm(fecha)} venció el ${describirLimite(limite)}` };
+}
+
+function plazoAdicion(fecha: string, ahora: number, cfg: ConfigPlazos): Resultado {
+  return plazoDiaAnterior(fecha, ahora, cfg.horaLimiteAdicion, "adicionales");
 }
 
 function plazoHoras(fecha: string, ahora: number, horas: number, nombre: string): Resultado {
@@ -149,6 +159,10 @@ export function validarPlazo(tipo: TipoPlazo, fecha: string, ahoraLocal: string,
       return plazoHoras(fecha, ahora, cfg.horasReduccion, "reducir");
     case "traslado":
       return plazoHoras(fecha, ahora, cfg.horasTraslado, "trasladar");
+    case "refrigerio":
+      return plazoDiaAnterior(fecha, ahora, cfg.horaLimiteRefrigerio, "refrigerios");
+    case "refrigerio_reduccion":
+      return plazoHoras(fecha, ahora, cfg.horasReduccionRefrigerio, "reducir refrigerios");
   }
 }
 
@@ -193,5 +207,7 @@ export function configDesdeFilas(filas: { modulo: string; regla: string; valor: 
     horaLimiteAdicion: hora(v("adicion", "hora_limite_dia_anterior"), d.horaLimiteAdicion),
     horasReduccion: num(v("reduccion", "horas_anticipacion"), d.horasReduccion),
     horasTraslado: num(v("traslado", "horas_anticipacion"), d.horasTraslado),
+    horaLimiteRefrigerio: hora(v("refrigerio", "hora_limite_dia_anterior"), d.horaLimiteRefrigerio),
+    horasReduccionRefrigerio: num(v("refrigerio", "horas_anticipacion_reduccion"), d.horasReduccionRefrigerio),
   };
 }
