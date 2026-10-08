@@ -124,3 +124,17 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - **Contáctanos:** Para fijo (configurable), hasta 5 direcciones en copia, asunto, mensaje y adjuntos (PDF, imágenes, Excel, Word; 10 MB en total). Se revisa el tipo real de cada archivo al subirlo y otra vez antes de enviarlo. Copia al remitente y "Responder" llega al usuario. Historial de mensajes enviados. Máximo 10 mensajes por hora por usuario.
 - Archivos en buckets privados de Supabase Storage; descarga solo para quien tiene permiso. Los archivos subidos que no se usan se borran solos.
 - 33 pruebas nuevas de base de datos (194 en total) y pruebas unitarias de tipos de archivo, correo MIME, fechas y texto con formato. Revisión independiente: hallazgos corregidos.
+
+## Fase 7: qué se entregó (08/10/2026)
+
+- **Auditoría** (Administración → Auditoría): todo lo que se crea, modifica o envía, los inicios de sesión y los cambios de configuración y permisos. Filtros por usuario, empresa, módulo, acción y fechas; detalle con los campos que cambiaron (antes y después); exportación a Excel (CSV). Solo la ven los roles de Kuntur Wasi con permiso.
+- **Métricas de uso** (últimos 7, 30 o 90 días): usuarios activos por día y por semana, inicios de sesión, envíos por día y por módulo, empresas sin actividad (con su último envío), errores recientes del servidor y correos que no salieron. El tiempo de respuesta de las páginas se verá en Google Cloud cuando la app esté publicada (Fase 8).
+- **Registro de errores:** los errores inesperados del servidor quedan en una tabla (sin datos personales) para las métricas.
+- **Importador** (Administración → Importar Excel), solo Superadmin:
+  - Acepta el Excel `DATA SOLICITUD` y los 7 CSV `MAESTRO DE …` con el formato actual (se puede subir solo una parte).
+  - **Simulación** obligatoria: cuántos registros se crean o ya existen por tabla y la lista de errores y advertencias (fila, columna, motivo), descargable.
+  - **Importación por partes** con barra de avance: maestros, historial en lotes de ~5000 filas y recálculo de saldos mes por mes. Si se corta, se continúa donde quedó.
+  - **Idempotente:** cada fila guarda su origen; volver a importar el mismo archivo no duplica nada.
+  - Reglas de docs/MAPEO_MIGRACION.md: frentes del historial que no están en el maestro se crean inactivos; envíos agrupados por cuenta, empresa y tipo (menos de 5 minutos entre filas); traslados emparejados; la migración no envía correos.
+  - Con los archivos reales: 320 163 filas leídas en ~10 segundos, 26 929 envíos, 2 errores (dos tarifas de DESAYUNO que se cruzan) y 37 advertencias.
+- 25 pruebas nuevas de base de datos (219 en total) y pruebas unitarias del lector de Excel/CSV y de la simulación. Revisión independiente: hallazgos corregidos.

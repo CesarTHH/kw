@@ -39,3 +39,8 @@
 | D35 | 07/10/2026 | Documentos (menú, términos, manual) con historial: cada publicación es un archivo nuevo; los usuarios solo acceden a la versión vigente | Se puede volver a una versión anterior sin exponer las antiguas | Aplicada |
 | D36 | 07/10/2026 | Contáctanos: las copias (CC) pueden ser cualquier correo válido, con tope de 5 por mensaje y 10 mensajes por hora | Así lo pide el formulario original; el tope limita el abuso | Aplicada (revisable) |
 | D37 | 07/10/2026 | Un correo con adjuntos se envía una sola vez a todos los destinatarios | Evita armar varias veces un mensaje pesado | Aplicada |
+| D38 | 08/10/2026 | El importador lee el Excel sin librerías externas (lector propio por partes) | Archivos de 24 MB / 218 MB sin cargar todo en memoria; sin dependencias nuevas | Aplicada |
+| D39 | 08/10/2026 | Al reimportar maestros, en comedores que ya existen solo se completa el sector: no se pisan las habilitaciones hechas en la app | Evita deshabilitar comedores por un archivo viejo | Aplicada |
+| D40 | 08/10/2026 | Las tarifas del archivo reemplazan a las que se cruzan con ellas (se avisa en la simulación) | El maestro de servicios es la fuente de los precios históricos | Aplicada (revisable) |
+| D41 | 08/10/2026 | Los envíos históricos quedan a nombre del Superadmin que importa, con la cuenta original en "usuario_origen" | Los usuarios nuevos son por persona; las cuentas antiguas eran por empresa | Aplicada |
+| D42 | 08/10/2026 | Empresa-frente y comedor-servicio se deducen del historial (comedor-servicio solo si se usó más de 2 veces) | Preguntas P9 y P10; se pueden ajustar en Tablas maestras | Aplicada (revisable) |
