@@ -36,3 +36,6 @@
 | D32 | 07/10/2026 | Refrigerios: el precio lo ven también los contratistas (pantalla y correo) | Confirmado por el cliente; igual que el correo actual | Aplicada |
 | D33 | 07/10/2026 | Refrigerios: el precio y la composición se congelan con los valores vigentes el día del envío | Histórico de precios estable | Aplicada |
 | D34 | 07/10/2026 | Cada módulo ve solo sus envíos (raciones o refrigerios) según su permiso | Mínimo privilegio | Aplicada |
+| D35 | 07/10/2026 | Documentos (menú, términos, manual) con historial: cada publicación es un archivo nuevo; los usuarios solo acceden a la versión vigente | Se puede volver a una versión anterior sin exponer las antiguas | Aplicada |
+| D36 | 07/10/2026 | Contáctanos: las copias (CC) pueden ser cualquier correo válido, con tope de 5 por mensaje y 10 mensajes por hora | Así lo pide el formulario original; el tope limita el abuso | Aplicada (revisable) |
+| D37 | 07/10/2026 | Un correo con adjuntos se envía una sola vez a todos los destinatarios | Evita armar varias veces un mensaje pesado | Aplicada |

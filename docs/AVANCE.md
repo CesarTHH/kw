@@ -115,3 +115,12 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - **Pedidos registrados** con botón **Reducir** (reducir a 0 = anular). Cada envío y reducción deja auditoría y correo "Solicitud de refrigerios" con la tabla (fecha, comedor, turno, composición, cantidad, precio sin IGV, tipo, encargado).
 - Los usuarios contratistas **sí ven el precio** (confirmado por el cliente).
 - 25 pruebas nuevas de base de datos (161 en total) y pruebas unitarias de plazos y precios. Revisión independiente: hallazgos corregidos.
+
+## Fase 6: qué se entregó (07/10/2026)
+
+- **Menú semanal:** dos PDFs (Menú 1 y Menú 2) con visor dentro de la página y botón "Descargar PDF". Admin y Superadmin publican una versión nueva (solo PDF real, menos de 1 MB). Historial de versiones y opción de volver a publicar una anterior. Los demás usuarios solo ven la versión vigente.
+- **Manual, términos y condiciones:** mismo esquema (descarga, versiones). Solo el Superadmin publica.
+- **Alertas post-login** (Administración → Alertas): título, mensaje con formato básico (**negrita**, *cursiva*, listas, enlaces https), fechas de inicio y fin, roles destinatarios y "una sola vez" o "en cada inicio de sesión". Se muestran en una ventana al entrar.
+- **Contáctanos:** Para fijo (configurable), hasta 5 direcciones en copia, asunto, mensaje y adjuntos (PDF, imágenes, Excel, Word; 10 MB en total). Se revisa el tipo real de cada archivo al subirlo y otra vez antes de enviarlo. Copia al remitente y "Responder" llega al usuario. Historial de mensajes enviados. Máximo 10 mensajes por hora por usuario.
+- Archivos en buckets privados de Supabase Storage; descarga solo para quien tiene permiso. Los archivos subidos que no se usan se borran solos.
+- 33 pruebas nuevas de base de datos (194 en total) y pruebas unitarias de tipos de archivo, correo MIME, fechas y texto con formato. Revisión independiente: hallazgos corregidos.
