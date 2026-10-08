@@ -22,7 +22,7 @@ export async function guardarAlerta(formData: FormData) {
   const contenido = String(formData.get("contenido") ?? "").trim();
   const desde = localAUtc(String(formData.get("desde") ?? ""), zona);
   const hasta = localAUtc(String(formData.get("hasta") ?? ""), zona);
-  const roles = [...new Set(formData.getAll("roles").map(String))].filter((r) => /^[a-z_]{2,40}$/.test(r));
+  const roles = [...new Set(formData.getAll("roles").map(String))].filter((r) => /^[a-z][a-z0-9_]{1,39}$/.test(r));
   const unaVez = formData.get("una_vez") !== "cada_login";
   const volverA = `${RUTA}?id=${nueva ? "nueva" : id}`;
   if (!titulo || titulo.length > 120 || !contenido || contenido.length > 4000 || !desde || !hasta || !roles.length) {

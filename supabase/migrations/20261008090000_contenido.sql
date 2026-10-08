@@ -92,8 +92,21 @@ create policy documentos_leer on public.documentos for select to authenticated
   using (vigente and seguridad.puede_ver_documento(tipo) or seguridad.puede_editar_documento(tipo));
 
 -- Storage: la primera carpeta de la ruta es el tipo (menu_1/…). Sin modificar ni borrar: cada versión es un archivo nuevo.
+create or replace function seguridad.puede_leer_archivo_documento(p_nombre text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select seguridad.puede_editar_documento((storage.foldername(p_nombre))[1])
+      or exists (select 1 from public.documentos d
+                 where d.ruta = p_nombre and d.vigente and seguridad.puede_ver_documento(d.tipo));
+$$;
+
+-- Quien solo ve: únicamente el archivo de la versión vigente. Quien publica: todas las versiones.
 create policy documentos_leer on storage.objects for select to authenticated
-  using (bucket_id = 'documentos' and seguridad.puede_ver_documento((storage.foldername(name))[1]));
+  using (bucket_id = 'documentos' and seguridad.puede_leer_archivo_documento(name));
 create policy documentos_subir on storage.objects for insert to authenticated
   with check (bucket_id = 'documentos' and seguridad.puede_editar_documento((storage.foldername(name))[1]));
 
@@ -167,7 +180,8 @@ declare
   d public.documentos;
 begin
   select * into d from public.documentos where id = p_id;
-  if not found or not seguridad.puede_editar_documento(d.tipo) then
+  if not found or not seguridad.puede_editar_documento(d.tipo)
+     or exists (select 1 from public.perfiles where id = auth.uid() and debe_cambiar_password) then
     raise exception 'No tienes permiso para publicar este documento' using errcode = '42501';
   end if;
   perform pg_advisory_xact_lock(hashtext('documentos:' || d.tipo));
@@ -313,18 +327,50 @@ revoke all on public.mensajes_contacto from anon;
 revoke insert, update, delete, truncate, references, trigger on public.mensajes_contacto from authenticated;
 grant select on public.mensajes_contacto to authenticated;
 create policy mensajes_contacto_leer on public.mensajes_contacto for select to authenticated
-  using (usuario_id = (select auth.uid()) or (select seguridad.tiene_permiso('admin.correos', 'ver')));
+  using (usuario_id = (select auth.uid())
+         or ((select seguridad.tiene_permiso('admin.correos', 'ver')) and (select seguridad.mi_alcance()) = 'todas'));
 
--- Storage: cada usuario sube en su propia carpeta (primera carpeta = su id).
+-- Archivos subidos por el usuario a Contáctanos en la última hora (freno contra usar el bucket como almacén).
+create or replace function seguridad.subidas_contacto_recientes()
+returns int
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select count(*)::int from storage.objects
+  where bucket_id = 'contacto' and owner_id = auth.uid()::text and created_at > now() - interval '1 hour';
+$$;
+
+-- Storage: cada usuario sube en su propia carpeta (primera carpeta = su id), hasta 40 archivos por hora.
 create policy contacto_subir on storage.objects for insert to authenticated
   with check (bucket_id = 'contacto'
               and (storage.foldername(name))[1] = (select auth.uid())::text
               and seguridad.usuario_activo()
-              and seguridad.tiene_permiso('contactanos', 'enviar'));
+              and seguridad.tiene_permiso('contactanos', 'enviar')
+              and seguridad.subidas_contacto_recientes() < 40);
 create policy contacto_leer on storage.objects for select to authenticated
   using (bucket_id = 'contacto'
          and ((storage.foldername(name))[1] = (select auth.uid())::text
-              or seguridad.tiene_permiso('admin.correos', 'ver')));
+              or (seguridad.tiene_permiso('admin.correos', 'ver') and seguridad.mi_alcance() = 'todas')));
+
+-- Archivos que nadie usó (subidas fallidas o abandonadas): los quita la Edge Function con la API de Storage.
+create or replace function public.archivos_huerfanos(p_limite int default 100)
+returns table (bucket text, ruta text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select o.bucket_id, o.name
+  from storage.objects o
+  where o.created_at < now() - interval '2 hours'
+    and ((o.bucket_id = 'contacto' and not exists (
+            select 1 from public.mensajes_contacto m, jsonb_array_elements(m.adjuntos) a where a ->> 'ruta' = o.name))
+      or (o.bucket_id = 'documentos' and not exists (select 1 from public.documentos d where d.ruta = o.name)))
+  order by o.created_at
+  limit least(greatest(p_limite, 1), 500);
+$$;
 
 -- p_adjuntos: [{ruta, nombre}] ya subidos por el usuario al bucket "contacto".
 create or replace function public.enviar_contacto(p_cc text[], p_asunto text, p_mensaje text, p_adjuntos jsonb, p_clave uuid)
@@ -420,6 +466,14 @@ begin
     if v_tipos is not null and not (v_tipos ? v_mime) then
       raise exception 'El tipo de archivo de "%" no está permitido', v_nom using errcode = '22023';
     end if;
+    -- El tipo debe corresponder a la extensión de la ruta, y el nombre lleva siempre esa extensión.
+    if v_mime is distinct from (case substring(v_ruta from '\.([a-z]+)$')
+         when 'pdf' then 'application/pdf' when 'png' then 'image/png' when 'jpg' then 'image/jpeg'
+         when 'xlsx' then 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+         when 'docx' then 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' end) then
+      raise exception 'Un adjunto no es válido' using errcode = '22023';
+    end if;
+    v_nom := left(regexp_replace(v_nom, '\.[^.]*$', ''), 140) || '.' || substring(v_ruta from '\.([a-z]+)$');
     if exists (select 1 from public.mensajes_contacto m, jsonb_array_elements(m.adjuntos) x where x ->> 'ruta' = v_ruta)
        or v_adjuntos @> jsonb_build_array(jsonb_build_object('ruta', v_ruta)) then
       raise exception 'Un adjunto ya fue usado' using errcode = '22023';
@@ -445,9 +499,10 @@ begin
     array[v_para] || v_cc || array[v_yo],
     ctx.empresa_id, null, false
   );
-  if v_correo is not null then
-    update public.correos_pendientes set adjuntos = v_adjuntos, responder_a = v_yo where id = v_correo;
+  if v_correo is null then
+    raise exception 'El envío de mensajes no está disponible en este momento' using errcode = '22023';
   end if;
+  update public.correos_pendientes set adjuntos = v_adjuntos, responder_a = v_yo where id = v_correo;
 
   insert into public.mensajes_contacto (usuario_id, empresa_id, para, cc, asunto, mensaje, adjuntos, correo_id, clave)
   values (ctx.usuario_id, ctx.empresa_id, v_para, v_cc, v_asunto, v_mensaje, v_adjuntos, v_correo, p_clave)
@@ -474,6 +529,68 @@ Con copia a: {{cc}}
 Para responder, use «Responder»: la respuesta llega a {{correo_usuario}}.',
     variables = array['asunto', 'usuario', 'correo_usuario', 'empresa', 'ruc', 'mensaje', 'cc']
 where codigo = 'contacto';
+
+-- Un correo que se interrumpió muchas veces "en proceso" queda como fallido (no se reintenta sin fin).
+create or replace function public.correos_tomar_lote(p_limite int default 20)
+returns setof public.correos_pendientes
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.correos_pendientes
+  set estado = 'fallido', ultimo_error = 'El envío se interrumpió varias veces'
+  where estado = 'procesando' and procesado_en < now() - interval '10 minutes' and intentos >= 6;
+
+  return query
+  update public.correos_pendientes c
+  set estado = 'procesando', intentos = c.intentos + 1, procesado_en = now()
+  where c.id in (
+    select x.id from public.correos_pendientes x
+    where (x.estado = 'pendiente' and x.proximo_intento <= now())
+       or (x.estado = 'procesando' and x.procesado_en < now() - interval '10 minutes')
+    order by x.proximo_intento
+    limit least(greatest(p_limite, 1), 100)
+    for update skip locked
+  )
+  returning c.*;
+end;
+$$;
+
+-- El disparo de cada minuto también llama a la función una vez por hora si hay archivos huérfanos que limpiar.
+create or replace function seguridad.disparar_envio_correos()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_url      text;
+  v_secreto  text;
+begin
+  if not exists (
+    select 1 from public.correos_pendientes
+    where (estado = 'pendiente' and proximo_intento <= now())
+       or (estado = 'procesando' and procesado_en < now() - interval '10 minutes')
+  ) and not (extract(minute from now()) = 7 and exists (select 1 from public.archivos_huerfanos(1))) then
+    return;
+  end if;
+
+  execute $q$
+    select (select decrypted_secret from vault.decrypted_secrets where name = 'correos_url'),
+           (select decrypted_secret from vault.decrypted_secrets where name = 'correos_cron_secreto')
+  $q$ into v_url, v_secreto;
+  if v_url is null or v_secreto is null then
+    return;
+  end if;
+
+  execute 'select net.http_post(url := $1, body := $2, headers := $3, timeout_milliseconds := 55000)'
+  using v_url, '{}'::jsonb,
+        jsonb_build_object('Content-Type', 'application/json', 'x-cron-secreto', v_secreto);
+exception when undefined_table or invalid_schema_name or undefined_function then
+  return;
+end;
+$$;
 
 -- Reenviar desde el historial conserva adjuntos y "responder a".
 create or replace function public.reenviar_correo(p_id uuid)
@@ -533,6 +650,10 @@ grant execute on function public.restaurar_documento(uuid) to authenticated;
 grant execute on function public.mis_alertas() to authenticated;
 grant execute on function public.marcar_alertas_vistas(uuid[]) to authenticated;
 grant execute on function public.enviar_contacto(text[], text, text, jsonb, uuid) to authenticated;
+revoke execute on function public.archivos_huerfanos(int) from public, anon, authenticated;
+grant execute on function public.archivos_huerfanos(int) to service_role;
+revoke execute on function public.correos_tomar_lote(int) from public, anon, authenticated;
+grant execute on function public.correos_tomar_lote(int) to service_role;
 
 revoke execute on all functions in schema seguridad from public, anon;
 grant execute on all functions in schema seguridad to authenticated, service_role;

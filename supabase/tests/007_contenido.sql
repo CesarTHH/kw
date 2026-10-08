@@ -1,7 +1,7 @@
 -- Pruebas de documentos, alertas y Contáctanos (pgTAP).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(33);
 
 create temporary table u (clave text primary key, id uuid);
 grant select on u to authenticated;
@@ -126,6 +126,32 @@ select throws_ok($$select public.enviar_contacto('{}', 'A', 'B', '[]', gen_rando
   '22023', null, 'Límite de mensajes por hora');
 select pg_temp.como('cb');
 select is((select count(*)::int from public.mensajes_contacto), 0, 'Otro contratista no ve los mensajes ajenos');
+
+-- 30. El contratista solo descarga la versión vigente del menú
+select pg_temp.como('ca');
+select is((select string_agg(name, ',') from storage.objects where bucket_id = 'documentos'),
+  'menu_1/22222222-2222-2222-2222-222222222222.pdf', 'El contratista ve solo el archivo vigente, no versiones anteriores');
+
+-- 31-33. Adjuntos: el nombre lleva la extensión real y el tipo debe coincidir con la ruta
+set local role postgres;
+update public.configuracion set valor = '10' where clave = 'contacto.max_por_hora';
+select pg_temp.objeto('contacto', (select id::text from u where clave = 'ca') || '/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.pdf', 'ca', 100, 'application/pdf');
+select pg_temp.objeto('contacto', (select id::text from u where clave = 'ca') || '/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.pdf', 'ca', 100, 'image/png');
+select pg_temp.como('ca');
+create temporary table m2 as
+select public.enviar_contacto('{}', 'Factura', 'Adjunto factura',
+  jsonb_build_array(jsonb_build_object('ruta', (select id::text from u where clave = 'ca') || '/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.pdf', 'nombre', 'factura.hta')),
+  gen_random_uuid()) as id;
+select is((select m.adjuntos -> 0 ->> 'nombre' from public.mensajes_contacto m where m.id = (select id from m2)), 'factura.pdf',
+  'El nombre del adjunto lleva la extensión del tipo real');
+select throws_ok($$select public.enviar_contacto('{}', 'A', 'B',
+  jsonb_build_array(jsonb_build_object('ruta', (select id::text from u where clave = 'ca') || '/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.pdf', 'nombre', 'x.pdf')),
+  gen_random_uuid())$$, '22023', 'Un adjunto no es válido', 'El tipo declarado debe coincidir con la extensión');
+set local role postgres;
+update public.plantillas_correo set activo = false where codigo = 'contacto';
+select pg_temp.como('ca');
+select throws_ok($$select public.enviar_contacto('{}', 'A', 'B', '[]', gen_random_uuid())$$,
+  '22023', 'El envío de mensajes no está disponible en este momento', 'Sin plantilla activa no se da por enviado');
 
 select * from finish();
 rollback;

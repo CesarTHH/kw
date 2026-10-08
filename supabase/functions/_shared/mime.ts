@@ -23,10 +23,13 @@ export function cabecera(valor: string): string {
   return /^[\x20-\x7e]*$/.test(limpio) ? limpio : `=?UTF-8?B?${aBase64(enc.encode(limpio))}?=`;
 }
 
-function nombreAdjunto(nombre: string): string {
+/** Parámetros de nombre: versión ASCII (filename="…") y UTF-8 según RFC 2231 (filename*=…). */
+function nombreAdjunto(nombre: string): { ascii: string; utf8: string } {
   // deno-lint-ignore no-control-regex
-  const limpio = nombre.replace(/[\u0000-\u001f\u007f"\\/]/g, "").slice(0, 150) || "adjunto";
-  return cabecera(limpio).replace(/"/g, "");
+  const limpio = nombre.replace(/[\u0000-\u001f\u007f"\\/;]/g, "").slice(0, 150) || "adjunto";
+  const ascii = limpio.normalize("NFD").replace(/[^\x20-\x7e]/g, "") || "adjunto";
+  const utf8 = encodeURIComponent(limpio).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return { ascii, utf8 };
 }
 
 export function construirMime(m: {
@@ -71,8 +74,8 @@ export function construirMime(m: {
     const tipo = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(a.tipo) ? a.tipo : "application/octet-stream";
     partes.push(
       `--${f}`,
-      `Content-Type: ${tipo}; name="${nombre}"`,
-      `Content-Disposition: attachment; filename="${nombre}"`,
+      `Content-Type: ${tipo}; name="${nombre.ascii}"`,
+      `Content-Disposition: attachment; filename="${nombre.ascii}";\r\n filename*=UTF-8''${nombre.utf8}`,
       "Content-Transfer-Encoding: base64",
       "",
       lineas76(aBase64(a.datos)),

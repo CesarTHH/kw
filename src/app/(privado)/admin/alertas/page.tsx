@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BotonEnviar } from "@/components/BotonEnviar";
+import { FormAlerta } from "@/components/contenido/FormAlerta";
 import { TextoEnriquecido } from "@/components/contenido/TextoEnriquecido";
 import { Encabezado } from "@/components/Encabezado";
 import { Avisos } from "@/components/maestras/Avisos";
@@ -120,7 +121,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<{
 
         <section>
           {mostrarForm ? (
-            <form action={guardarAlerta} className="panel space-y-3">
+            <FormAlerta action={guardarAlerta} className="panel space-y-3">
               <h2 className="text-lg font-semibold text-oliva">{editando ? "Editar alerta" : "Nueva alerta"}</h2>
               <input type="hidden" name="id" value={editando?.id ?? "nueva"} />
               <label className="block">
@@ -198,7 +199,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<{
                   <TextoEnriquecido texto={editando.contenido} />
                 </div>
               )}
-            </form>
+            </FormAlerta>
           ) : editando ? (
             <div className="panel space-y-2 text-sm">
               <h2 className="text-lg font-semibold text-oliva">{editando.titulo}</h2>

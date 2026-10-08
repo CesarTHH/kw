@@ -21,7 +21,7 @@ describe("correo MIME con adjuntos", () => {
     expect(mime).toContain("Reply-To: cliente@empresa.pe");
     expect(mime).toContain('Content-Type: multipart/mixed; boundary="mixto_F"');
     expect(mime).toContain(aBase64(new TextEncoder().encode("<p>Hola</p>")));
-    expect(mime).toContain('Content-Disposition: attachment; filename="carta final.pdf"');
+    expect(mime).toContain(`Content-Disposition: attachment; filename="carta final.pdf";\r\n filename*=UTF-8''carta%20final.pdf`);
     expect(mime).toContain("JVBERg==");
     expect(mime.endsWith("--mixto_F--\r\n")).toBe(true);
   });

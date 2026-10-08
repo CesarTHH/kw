@@ -37,7 +37,27 @@ export async function enviarContacto(formData: FormData): Promise<ResultadoConta
   }
 
   const archivos = formData.getAll("adjuntos").filter((a): a is File => a instanceof File && a.size > 0);
-  const config = await leerConfig(["archivos.contacto_max_bytes", "archivos.contacto_tipos"]);
+  const config = await leerConfig([
+    "archivos.contacto_max_bytes",
+    "archivos.contacto_tipos",
+    "contacto.cc_maximo",
+    "contacto.max_por_hora",
+  ]);
+  const ccMaximo = numero(config.get("contacto.cc_maximo"), 5);
+  if (cc.length > ccMaximo) return { ok: false, error: `Puedes poner hasta ${ccMaximo} direcciones en copia.` };
+
+  // Antes de subir archivos: ¿el usuario todavía puede enviar en esta hora? (la base de datos lo vuelve a verificar)
+  const supabase = await crearClienteServidor();
+  const haceUnaHora = new Date(Date.now() - 3_600_000).toISOString();
+  const { count } = await supabase
+    .from("mensajes_contacto")
+    .select("id", { count: "exact", head: true })
+    .eq("usuario_id", ctx.usuario_id)
+    .gte("created_at", haceUnaHora);
+  if ((count ?? 0) >= numero(config.get("contacto.max_por_hora"), 10)) {
+    return { ok: false, error: "Enviaste demasiados mensajes en la última hora. Inténtalo más tarde." };
+  }
+
   const maximo = numero(config.get("archivos.contacto_max_bytes"), 10_485_760);
   const tipos = config.get("archivos.contacto_tipos");
   const permitidos = Array.isArray(tipos) ? tipos.filter((t): t is string => typeof t === "string") : [];
@@ -58,7 +78,6 @@ export async function enviarContacto(formData: FormData): Promise<ResultadoConta
     listos.push({ bytes, mime: tipo.mime, ext: tipo.ext, nombre });
   }
 
-  const supabase = await crearClienteServidor();
   const adjuntos: { ruta: string; nombre: string }[] = [];
   for (const a of listos) {
     const ruta = `${ctx.usuario_id}/${crypto.randomUUID()}.${a.ext}`;

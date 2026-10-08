@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { AwsClient } from "npm:aws4fetch@1.0.20";
 import { aBase64, construirMime, type Adjunto } from "../_shared/mime.ts";
 import { renderizar, type Plantilla } from "../_shared/plantilla.ts";
+import { detectarTipo } from "../_shared/tipo-archivo.ts";
 
 const MAX_INTENTOS = 6;
 const TIEMPO_MAXIMO_MS = 40_000;
@@ -72,7 +73,8 @@ async function leerConfiguracion() {
 
 async function enviarSes(
   de: string,
-  para: string,
+  para: string[],
+  ocultos: string[],
   asunto: string,
   html: string,
   texto: string,
@@ -81,9 +83,13 @@ async function enviarSes(
   adjuntos: Adjunto[],
 ): Promise<{ resultado: Resultado; messageId?: string; detalle?: string }> {
   try {
-    // Con adjuntos se envía el mensaje MIME completo; sin adjuntos, el formato simple de SES.
+    // Con adjuntos se envía el mensaje MIME completo (una sola vez para todos); sin adjuntos, el formato simple de SES.
     const contenido = adjuntos.length
-      ? { Raw: { Data: aBase64(new TextEncoder().encode(construirMime({ de, para, asunto, html, texto, responderA, adjuntos }))) } }
+      ? {
+          Raw: {
+            Data: aBase64(new TextEncoder().encode(construirMime({ de, para: para.join(", "), asunto, html, texto, responderA, adjuntos }))),
+          },
+        }
       : {
           Simple: {
             Subject: { Data: asunto, Charset: "UTF-8" },
@@ -95,7 +101,7 @@ async function enviarSes(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         FromEmailAddress: de,
-        Destination: { ToAddresses: [para] },
+        Destination: { ToAddresses: para, BccAddresses: ocultos.length ? ocultos : undefined },
         ReplyToAddresses: responderA && CORREO_VALIDO.test(responderA) ? [responderA] : undefined,
         Content: contenido,
         ConfigurationSetName: configurationSet,
@@ -120,7 +126,7 @@ async function enviarSes(
       return { resultado: "detener", detalle };
     }
     // Rechazo de ESTE destinatario (dirección inválida o no verificada en sandbox): definitivo.
-    if (r.status === 400 && (error.includes(para.toLowerCase()) || /invalid.*address|illegal address/.test(error))) {
+    if (r.status === 400 && (para.some((x) => error.includes(x.toLowerCase())) || /invalid.*address|illegal address/.test(error))) {
       return { resultado: "fallido", detalle };
     }
     // 429 (límite de envío), 5xx y cualquier otro caso: temporal.
@@ -171,61 +177,74 @@ async function procesar(
 
   const enviar = cfg.modo === "enviar" && aws !== null && CORREO_VALIDO.test(cfg.direccion);
   const de = remitente(cfg.nombre, cfg.direccion);
-  // Los adjuntos se descargan una vez por correo (solo si de verdad se va a enviar).
+  const lista = (dests ?? []) as Destinatario[];
+  // Los adjuntos se descargan una vez por correo (solo si de verdad se va a enviar) y se revisa su contenido real.
   const adjuntos: Adjunto[] = [];
-  if (enviar && (dests ?? []).length) {
+  if (enviar && lista.length) {
     for (const a of c.adjuntos ?? []) {
-      if (a.bucket !== "contacto") continue;
-      const { data: archivo, error } = await supabase.storage.from(a.bucket).download(a.ruta);
+      const { data: archivo, error } = a.bucket === "contacto" ? await supabase.storage.from(a.bucket).download(a.ruta) : { data: null, error: true };
       if (error || !archivo) throw new Error(`No se pudo leer el adjunto ${a.nombre}`);
-      adjuntos.push({ nombre: a.nombre, tipo: a.tipo, datos: new Uint8Array(await archivo.arrayBuffer()) });
+      const datos = new Uint8Array(await archivo.arrayBuffer());
+      if (detectarTipo(datos)?.mime !== a.tipo) {
+        await supabase
+          .from("correos_pendientes")
+          .update({ estado: "fallido", ultimo_error: `El adjunto ${a.nombre} no es del tipo declarado` })
+          .eq("id", c.id);
+        return true;
+      }
+      adjuntos.push({ nombre: a.nombre, tipo: a.tipo, datos });
     }
   }
+
+  // Sin adjuntos: un envío por destinatario (estado exacto de cada uno).
+  // Con adjuntos: un solo envío para todos, para no armar y firmar varias veces un mensaje pesado.
+  const grupos: Destinatario[][] = adjuntos.length ? (lista.length ? [lista] : []) : lista.map((d) => [d]);
   let pendientes = 0;
   let detener = false;
   let ultimoError: string | null = null;
+  const marcar = async (grupo: Destinatario[], cambios: Record<string, unknown>) => {
+    const { error: eAct } = await supabase
+      .from("correo_destinatarios")
+      .update({ ...cambios, actualizado_en: new Date().toISOString() })
+      .in("id", grupo.map((d) => d.id));
+    if (eAct) console.error("No se pudo guardar el resultado de", c.id, eAct.message);
+  };
 
-  for (const d of (dests ?? []) as Destinatario[]) {
+  for (const grupo of grupos) {
     if (!enviar) {
-      await supabase
-        .from("correo_destinatarios")
-        .update({ estado: "registrado", detalle: "Modo registrar: no se envió", actualizado_en: new Date().toISOString() })
-        .eq("id", d.id);
+      await marcar(grupo, { estado: "registrado", detalle: "Modo registrar: no se envió" });
       continue;
     }
     if (detener) {
-      pendientes++;
+      pendientes += grupo.length;
       continue;
     }
-    const r = await enviarSes(de, d.correo, armado.asunto, armado.html, armado.texto, c.id, c.responder_a ?? null, adjuntos);
+    const para = grupo.filter((d) => d.tipo !== "cco").map((d) => d.correo);
+    const ocultos = grupo.filter((d) => d.tipo === "cco").map((d) => d.correo);
+    const r = await enviarSes(
+      de,
+      para.length ? para : ocultos,
+      para.length ? ocultos : [],
+      armado.asunto,
+      armado.html,
+      armado.texto,
+      c.id,
+      c.responder_a ?? null,
+      adjuntos,
+    );
     if (r.resultado === "detener") {
       detener = true;
-      pendientes++;
+      pendientes += grupo.length;
       ultimoError = r.detalle ?? null;
       continue;
     }
     if (r.resultado === "reintentar") {
-      pendientes++;
       ultimoError = r.detalle ?? null;
-      if (c.intentos >= MAX_INTENTOS) {
-        pendientes--;
-        await supabase
-          .from("correo_destinatarios")
-          .update({ estado: "fallido", detalle: r.detalle, actualizado_en: new Date().toISOString() })
-          .eq("id", d.id);
-      }
+      if (c.intentos >= MAX_INTENTOS) await marcar(grupo, { estado: "fallido", detalle: r.detalle });
+      else pendientes += grupo.length;
     } else {
       if (r.resultado === "fallido") ultimoError = r.detalle ?? null;
-      const { error: eAct } = await supabase
-        .from("correo_destinatarios")
-        .update({
-          estado: r.resultado,
-          ses_message_id: r.messageId ?? null,
-          detalle: r.detalle ?? null,
-          actualizado_en: new Date().toISOString(),
-        })
-        .eq("id", d.id);
-      if (eAct) console.error("No se pudo guardar el resultado de", d.id, eAct.message);
+      await marcar(grupo, { estado: r.resultado, ses_message_id: r.messageId ?? null, detalle: r.detalle ?? null });
     }
     await dormir(PAUSA_MS);
   }
@@ -293,5 +312,19 @@ Deno.serve(async (req) => {
       procesados++;
     }
   }
-  return Response.json({ procesados, modo: cfg.modo, ses: aws !== null });
+  // Limpieza: archivos subidos que ningún mensaje ni documento usó (subidas fallidas o abandonadas).
+  let limpiados = 0;
+  if (Date.now() - inicio < TIEMPO_MAXIMO_MS) {
+    const { data: huerfanos } = await supabase.rpc("archivos_huerfanos", { p_limite: 100 });
+    const porBucket = new Map<string, string[]>();
+    for (const h of (huerfanos ?? []) as { bucket: string; ruta: string }[]) {
+      if (h.bucket === "contacto" || h.bucket === "documentos") porBucket.set(h.bucket, [...(porBucket.get(h.bucket) ?? []), h.ruta]);
+    }
+    for (const [bucket, rutas] of porBucket) {
+      const { error } = await supabase.storage.from(bucket).remove(rutas);
+      if (error) console.error("limpieza", bucket, error.message);
+      else limpiados += rutas.length;
+    }
+  }
+  return Response.json({ procesados, limpiados, modo: cfg.modo, ses: aws !== null });
 });
