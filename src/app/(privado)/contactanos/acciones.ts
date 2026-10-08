@@ -8,6 +8,7 @@ import { esUuid } from "@/lib/busqueda";
 import { leerConfig, numero } from "@/lib/contenido/servidor";
 import { Limitador } from "@/lib/limitador";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 // Además del límite por hora de la base de datos: 5 intentos cada 10 minutos por usuario.
 const porUsuario = new Limitador(5, 10 * 60_000);
@@ -83,7 +84,7 @@ export async function enviarContacto(formData: FormData): Promise<ResultadoConta
     const ruta = `${ctx.usuario_id}/${crypto.randomUUID()}.${a.ext}`;
     const { error } = await supabase.storage.from("contacto").upload(ruta, a.bytes, { contentType: a.mime, upsert: false });
     if (error) {
-      console.error("[contacto] subir:", error.message);
+      await registrarError("contacto subir", error.message);
       return { ok: false, error: "No se pudo subir un adjunto. Inténtalo de nuevo." };
     }
     adjuntos.push({ ruta, nombre: a.nombre });
@@ -98,7 +99,7 @@ export async function enviarContacto(formData: FormData): Promise<ResultadoConta
   });
   if (error) {
     if (error.code === "22023" || error.code === "42501") return { ok: false, error: error.message };
-    console.error("[contacto]", error.code, error.message);
+    await registrarError("contacto", error.code, error.message);
     return { ok: false, error: "No se pudo enviar el mensaje. Inténtalo de nuevo." };
   }
   revalidatePath("/contactanos");

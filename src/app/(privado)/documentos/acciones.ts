@@ -9,6 +9,7 @@ import { leerConfig, numero } from "@/lib/contenido/servidor";
 import { esTipoDocumento, TIPOS_DOCUMENTO } from "@/lib/contenido/tipos";
 import { claveError } from "@/lib/maestras/errores";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 /** Publica una nueva versión de un PDF (menú semanal, términos o manual). */
 export async function publicarDocumento(formData: FormData) {
@@ -38,7 +39,7 @@ export async function publicarDocumento(formData: FormData) {
     .from("documentos")
     .upload(ruta, bytes, { contentType: "application/pdf", upsert: false, cacheControl: "0" });
   if (eSubir) {
-    console.error("[documentos] subir:", eSubir.message);
+    await registrarError("documentos subir", eSubir.message);
     ir("error=guardar");
   }
   const { error } = await supabase.rpc("registrar_documento", {

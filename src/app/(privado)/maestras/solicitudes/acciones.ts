@@ -10,6 +10,7 @@ import { retorno } from "@/lib/maestras/retorno";
 import { passwordTemporal } from "@/lib/password-temporal";
 import { crearClienteAdmin, hayClaveAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 const RUTA = "/maestras/solicitudes";
 
@@ -50,7 +51,7 @@ export async function aprobarSolicitud(_prev: EstadoAprobacion, formData: FormDa
     }
     const { data, error } = await supabase.rpc("aprobar_solicitud", { p_id: id });
     if (error) {
-      console.error("[solicitudes] aprobar:", error.code);
+      await registrarError("solicitudes aprobar", error.code);
       return { error: "No se pudo aprobar. Revisa que los datos de la solicitud sean válidos." };
     }
     empresaId = data as string;
@@ -84,7 +85,7 @@ export async function aprobarSolicitud(_prev: EstadoAprobacion, formData: FormDa
   const { error: e3 } = await supabase.rpc("vincular_usuario_solicitud", { p_id: id, p_usuario_id: creado.user.id });
   revalidatePath(RUTA);
   if (e3) {
-    console.error("[solicitudes] vincular:", e3.code);
+    await registrarError("solicitudes vincular", e3.code);
     return {
       correo: s.usuario_correo,
       password,

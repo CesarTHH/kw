@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { cambioPasswordSchema, primerError } from "@/lib/validaciones";
+import { registrarError } from "@/lib/errores";
 
 export type EstadoCambio = { error?: string };
 
@@ -23,7 +24,7 @@ export async function cambiarPassword(_prev: EstadoCambio, formData: FormData): 
   if (error) {
     if (error.code === "same_password") return { error: "La nueva contraseña debe ser distinta de la anterior." };
     if (error.code === "weak_password") return { error: "La contraseña es demasiado débil o muy común." };
-    console.error("[cambio de contraseña]", error.code);
+    await registrarError("cambio de contraseña", error.code);
     return { error: "No se pudo cambiar la contraseña. Inténtalo de nuevo." };
   }
 

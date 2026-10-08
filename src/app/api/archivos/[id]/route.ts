@@ -2,6 +2,7 @@ import { obtenerContexto } from "@/lib/auth";
 import { contentDisposition } from "@/lib/archivos";
 import { esUuid } from "@/lib/busqueda";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 /**
  * Entrega un PDF publicado (menú, términos, manual) a un usuario con sesión.
@@ -24,7 +25,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data: archivo, error } = await supabase.storage.from("documentos").download(doc.ruta);
   if (error || !archivo) {
-    console.error("[archivos] descarga:", error?.message);
+    await registrarError("archivos descarga", error?.message);
     return new Response("No encontrado", { status: 404 });
   }
 

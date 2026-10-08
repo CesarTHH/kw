@@ -7,6 +7,7 @@ import { esSuperadmin, permisoEnAccion } from "@/lib/auth";
 import { ACCIONES } from "@/lib/permisos";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { rolNuevoSchema } from "@/lib/validaciones";
+import { registrarError } from "@/lib/errores";
 
 const RUTA = "/admin/roles";
 
@@ -48,7 +49,7 @@ export async function guardarPermisos(formData: FormData) {
   const supabase = await crearClienteServidor();
   const { error } = await supabase.rpc("guardar_permisos_rol", { p_rol_id: rolId.data, p_permisos: permisos });
   if (error) {
-    console.error("[roles] guardar_permisos_rol:", error.code);
+    await registrarError("roles guardar_permisos_rol", error.code);
     redirect(`${RUTA}?rol=${rolId.data}&error=guardar`);
   }
   revalidatePath(RUTA);

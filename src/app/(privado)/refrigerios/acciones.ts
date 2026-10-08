@@ -6,6 +6,7 @@ import { permisoEnAccion } from "@/lib/auth";
 import { esUuid } from "@/lib/busqueda";
 import type { PedidoBorrador } from "@/lib/refrigerios/tipos";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 const itemSchema = z.object({ producto_id: z.uuid(), cantidad: z.number().int().min(1).max(100) });
 const pedidoSchema = z.object({
@@ -66,9 +67,9 @@ export async function consultarPedidos(empresaId: string, desde: string, hasta: 
 
 export type Resultado = { ok: true; envioId: string } | { ok: false; error: string };
 
-function mensaje(error: { code?: string; message: string }): string {
+async function mensaje(error: { code?: string; message: string }): Promise<string> {
   if (error.code === "22023" || error.code === "42501") return error.message;
-  console.error("[refrigerios]", error.code, error.message);
+  await registrarError("refrigerios", error.code, error.message);
   return "No se pudo enviar. Inténtalo de nuevo.";
 }
 
@@ -84,7 +85,7 @@ export async function enviarRefrigerios(empresaId: string, pedidos: PedidoBorrad
     p_clave: clave,
     p_motivo: motivo?.trim() || null,
   });
-  if (error) return { ok: false, error: mensaje(error) };
+  if (error) return { ok: false, error: await mensaje(error) };
   await supabase.from("borradores").delete().eq("empresa_id", empresaId).eq("modulo", "refrigerios");
   revalidatePath("/refrigerios");
   return { ok: true, envioId: String(data) };
@@ -102,7 +103,7 @@ export async function reducirRefrigerio(pedidoId: string, cantidad: number, clav
     p_clave: clave,
     p_motivo: motivo?.trim() || null,
   });
-  if (error) return { ok: false, error: mensaje(error) };
+  if (error) return { ok: false, error: await mensaje(error) };
   revalidatePath("/refrigerios");
   return { ok: true, envioId: String(data) };
 }

@@ -10,6 +10,7 @@ import { rutaSegura } from "@/lib/rutas";
 import { COOKIE_EMPRESA, type ModuloBorrador } from "@/lib/raciones/servidor";
 import type { FilaBorrador, Saldo } from "@/lib/raciones/tipos";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 const fecha = z.iso.date();
 const filaSchema = z.object({
@@ -110,7 +111,7 @@ export async function enviarRaciones(
     // Los mensajes de validación de la base de datos (código 22023) están pensados para el usuario.
     if (error.code === "22023") return { ok: false, error: error.message };
     if (error.code === "42501") return { ok: false, error: error.message || "No tienes permiso." };
-    console.error("[raciones] enviar_raciones:", error.code, error.message);
+    await registrarError("raciones enviar_raciones", error.code, error.message);
     return { ok: false, error: "No se pudo enviar. Inténtalo de nuevo." };
   }
   await supabase.from("borradores").delete().eq("empresa_id", empresaId).eq("modulo", modulo);

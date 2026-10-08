@@ -10,6 +10,7 @@ import { retorno } from "@/lib/maestras/retorno";
 import { passwordTemporal } from "@/lib/password-temporal";
 import { crearClienteAdmin, hayClaveAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { registrarError } from "@/lib/errores";
 
 const RUTA = "/maestras/usuarios";
 const BLOQUEO = "876000h"; // ~100 años: la cuenta queda bloqueada en Auth hasta reactivarla.
@@ -150,7 +151,7 @@ export async function cambiarEstadoUsuario(formData: FormData) {
     ban_duration: activar ? "none" : BLOQUEO,
   });
   if (e2) {
-    console.error("[usuarios] ban_duration:", e2.code ?? e2.message);
+    await registrarError("usuarios ban_duration", e2.code ?? e2.message);
     // Se deshace el cambio del perfil para que Auth y la app no queden desalineados.
     await supabase.from("perfiles").update({ estado: anterior }).eq("id", id);
     redirect(retorno(RUTA, formData, { id, error: "guardar" }));
