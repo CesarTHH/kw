@@ -1,5 +1,6 @@
--- Ejecutar UNA vez en Supabase → SQL Editor (proyecto de pruebas).
--- Es la migración 20261008030100_contenido_plantilla_contacto más su registro en el historial.
+-- =============================================================================
+-- Kuntur Wasi · Fase 6 (7/7): plantilla del correo de Contáctanos (se ejecuta en el SQL Editor).
+-- =============================================================================
 
 -- La plantilla muestra quién va en copia.
 update public.plantillas_correo
@@ -16,7 +17,3 @@ Para responder, use «Responder»: la respuesta llega a {{correo_usuario}}.',
     variables = array['asunto', 'usuario', 'correo_usuario', 'empresa', 'ruc', 'mensaje', 'cc']
 where codigo = 'contacto';
 
-
-insert into supabase_migrations.schema_migrations (version, name)
-values ('20261008030100', 'contenido_plantilla_contacto')
-on conflict (version) do nothing;
