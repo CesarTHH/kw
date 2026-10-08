@@ -63,11 +63,11 @@ export function clave(v: unknown): string {
     .toUpperCase();
 }
 
-/** Verdadero / False / Activo / Inactivo / Sí / No → boolean (null si no se reconoce). */
+/** Verdadero / False / Activo / Inactivo / Sí / No → boolean (null si está vacío o no se reconoce). */
 export function booleano(v: unknown): boolean | null {
   const k = clave(v);
   if (["VERDADERO", "TRUE", "ACTIVO", "SI", "1", "X"].includes(k)) return true;
-  if (["FALSO", "FALSE", "INACTIVO", "NO", "0", ""].includes(k)) return false;
+  if (["FALSO", "FALSE", "INACTIVO", "NO", "0"].includes(k)) return false;
   return null;
 }
 

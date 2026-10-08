@@ -111,13 +111,13 @@ type Registro = {
   lotes_total: number;
   catalogos_hechos: boolean;
   meses: string[];
-  meses_hechos: number;
+  meses_listos: string[];
 };
 
 async function leerImportacion(supabase: Cliente, id: string): Promise<Registro | null> {
   const { data } = await supabase
     .from("importaciones")
-    .select("id, estado, archivos, lotes_total, catalogos_hechos, meses, meses_hechos")
+    .select("id, estado, archivos, lotes_total, catalogos_hechos, meses, meses_listos")
     .eq("id", id)
     .maybeSingle();
   return data as Registro | null;
@@ -275,7 +275,7 @@ export async function pendientesImportacion(
       estado: reg.estado,
       catalogos: !reg.catalogos_hechos,
       lotes: Array.from({ length: reg.lotes_total }, (_, n) => n).filter((n) => !hechos.has(n)),
-      meses: reg.meses.slice(reg.meses_hechos),
+      meses: reg.meses.filter((m) => !reg.meses_listos.includes(m)),
     },
   };
 }

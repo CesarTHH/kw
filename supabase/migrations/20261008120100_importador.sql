@@ -32,6 +32,7 @@ create table public.importaciones (
   lotes_hechos       int not null default 0,
   meses              date[] not null default '{}',
   meses_hechos       int not null default 0,
+  meses_listos       date[] not null default '{}',
   catalogos_hechos   boolean not null default false,
   resultado          jsonb,
   terminado_en       timestamptz
@@ -239,10 +240,16 @@ begin
        x(proyecto text, area text, nombre text, sponsor text, desde date, hasta date, migracion boolean, origen_id text)
   join public.proyectos p on seguridad.normalizar_nombre(p.nombre) = seguridad.normalizar_nombre(x.proyecto)
   join public.areas a on seguridad.normalizar_nombre(a.nombre) = seguridad.normalizar_nombre(x.area)
+  -- Un frente renombrado en la app conserva su origen: no se vuelve a crear.
+  where not exists (select 1 from public.frentes_trabajo f where f.origen_id = x.origen_id
+                    and seguridad.normalizar_nombre(f.nombre) <> seguridad.normalizar_nombre(x.nombre))
   on conflict (proyecto_id, area_id, (seguridad.normalizar_nombre(nombre))) do update
     set sponsor = coalesce(excluded.sponsor, public.frentes_trabajo.sponsor),
         contrato_desde = coalesce(excluded.contrato_desde, public.frentes_trabajo.contrato_desde),
         contrato_hasta = coalesce(excluded.contrato_hasta, public.frentes_trabajo.contrato_hasta),
+        -- Un frente que solo venía del historial se activa cuando aparece en el maestro.
+        activo = public.frentes_trabajo.activo or public.frentes_trabajo.creado_por_migracion,
+        creado_por_migracion = false,
         origen_id = coalesce(public.frentes_trabajo.origen_id, excluded.origen_id)
     where not excluded.creado_por_migracion;
   get diagnostics c = row_count; n := n || jsonb_build_object('frentes', c);
@@ -256,7 +263,12 @@ begin
     set razon_social = excluded.razon_social, nombre_corto = excluded.nombre_corto,
         direccion = coalesce(excluded.direccion, public.empresas.direccion), tipo = excluded.tipo,
         telefonos = coalesce(excluded.telefonos, public.empresas.telefonos),
-        origen_id = coalesce(public.empresas.origen_id, excluded.origen_id);
+        origen_id = coalesce(public.empresas.origen_id, excluded.origen_id)
+    where (public.empresas.razon_social, public.empresas.nombre_corto, public.empresas.tipo,
+           public.empresas.direccion, public.empresas.telefonos, public.empresas.origen_id)
+          is distinct from (excluded.razon_social, excluded.nombre_corto, excluded.tipo,
+           coalesce(excluded.direccion, public.empresas.direccion), coalesce(excluded.telefonos, public.empresas.telefonos),
+           coalesce(public.empresas.origen_id, excluded.origen_id));
   get diagnostics c = row_count; n := n || jsonb_build_object('empresas', c);
 
   insert into public.empresa_contactos (empresa_id, tipo, nombre, telefono, correo, recibe_notificaciones, origen_id)
@@ -264,20 +276,24 @@ begin
   from jsonb_to_recordset(coalesce(p_datos -> 'contactos', '[]'))
        x(ruc text, tipo text, nombre text, telefono text, correo text, recibe boolean, origen_id text)
   join public.empresas e on e.ruc = x.ruc
-  on conflict (origen_id) do update set nombre = excluded.nombre, telefono = coalesce(excluded.telefono, public.empresa_contactos.telefono);
+  on conflict (origen_id) do update set nombre = excluded.nombre, telefono = coalesce(excluded.telefono, public.empresa_contactos.telefono)
+    where (public.empresa_contactos.nombre, public.empresa_contactos.telefono)
+          is distinct from (excluded.nombre, coalesce(excluded.telefono, public.empresa_contactos.telefono));
   get diagnostics c = row_count; n := n || jsonb_build_object('contactos', c);
 
-  -- Comedores: el sector solo se cambia si el maestro trae uno.
+  -- Comedores: los nuevos se crean con lo que dice el maestro. En los que ya existen solo se completa
+  -- el sector si faltaba: lo que se habilitó o deshabilitó en la app no se pisa.
   insert into public.comedores (nombre, sector_id, habilitado_raciones, habilitado_refrigerios, habilitado_puntos_k, habilitado_kitchenette, activo, origen_id)
   select x.nombre, s.id, x.raciones, x.refrigerios, x.puntos_k, x.kitchenette, x.activo, x.origen_id
   from jsonb_to_recordset(coalesce(p_datos -> 'comedores', '[]'))
        x(nombre text, sector text, raciones boolean, refrigerios boolean, puntos_k boolean, kitchenette boolean, activo boolean, origen_id text)
   left join public.sectores s on s.codigo = x.sector
+  where not exists (select 1 from public.comedores c where c.origen_id = x.origen_id)
   on conflict ((seguridad.normalizar_nombre(nombre))) do update
-    set sector_id = coalesce(excluded.sector_id, public.comedores.sector_id),
-        habilitado_raciones = excluded.habilitado_raciones, habilitado_refrigerios = excluded.habilitado_refrigerios,
-        habilitado_puntos_k = excluded.habilitado_puntos_k, habilitado_kitchenette = excluded.habilitado_kitchenette,
-        activo = excluded.activo, origen_id = coalesce(public.comedores.origen_id, excluded.origen_id);
+    set sector_id = coalesce(public.comedores.sector_id, excluded.sector_id),
+        origen_id = coalesce(public.comedores.origen_id, excluded.origen_id)
+    where public.comedores.sector_id is null and excluded.sector_id is not null
+       or public.comedores.origen_id is null;
   get diagnostics c = row_count; n := n || jsonb_build_object('comedores', c);
 
   insert into public.servicios (nombre, tipo_servicio_id, es_a_campo)
@@ -355,6 +371,9 @@ begin
   if not found then
     raise exception 'La importación no está en curso o faltan los catálogos' using errcode = '22023';
   end if;
+  if p_lote < 0 or p_lote >= (select lotes_total from public.importaciones where id = p_id) then
+    raise exception 'Lote fuera de rango' using errcode = '22023';
+  end if;
   if exists (select 1 from public.importacion_lotes where importacion_id = p_id and lote = p_lote) then
     return jsonb_build_object('repetido', true);
   end if;
@@ -408,6 +427,15 @@ begin
   join public.racion_movimientos o on o.origen_id = r.par
   where m.origen_id = r.origen and r.par is not null and m.traslado_par is null;
 
+  -- Totales de los envíos según sus movimientos reales (por si un envío reúne filas de otra importación).
+  update public.envios e
+  set total_filas = x.filas, total_raciones = x.total
+  from (select m.envio_id, count(*)::int as filas, sum(m.cantidad)::int as total
+        from public.racion_movimientos m
+        where m.envio_id in (select distinct envio_id from t_resueltas)
+        group by m.envio_id) x
+  where e.id = x.envio_id and (e.total_filas, e.total_raciones) is distinct from (x.filas, x.total);
+
   insert into public.importacion_lotes (importacion_id, lote, insertados, existentes)
   values (p_id, p_lote, v_insertados, v_existentes);
   update public.importaciones set lotes_hechos = (select count(*) from public.importacion_lotes where importacion_id = p_id)
@@ -438,6 +466,8 @@ begin
     raise exception 'La importación no está en curso' using errcode = '22023';
   end if;
 
+  -- Mientras se recalcula, nadie más cambia saldos (los envíos en vivo esperan unos segundos).
+  lock table public.racion_saldos in share row exclusive mode;
   drop table if exists t_saldos;
   create temporary table t_saldos on commit drop as
   select empresa_id, fecha, frente_id, comedor_id, servicio_id, sum(cantidad)::int as cantidad
@@ -453,7 +483,8 @@ begin
     where public.racion_saldos.cantidad <> excluded.cantidad;
 
   update public.importaciones
-  set meses_hechos = meses_hechos + 1,
+  set meses_listos = case when v_mes = any (meses_listos) then meses_listos else meses_listos || v_mes end,
+      meses_hechos = cardinality(case when v_mes = any (meses_listos) then meses_listos else meses_listos || v_mes end),
       resultado = coalesce(resultado, '{}'::jsonb)
                   || jsonb_build_object('saldos_negativos', coalesce((resultado ->> 'saldos_negativos')::int, 0) + v_negativos)
   where id = p_id;
@@ -477,7 +508,9 @@ begin
   if not found then
     raise exception 'La importación no está en curso' using errcode = '22023';
   end if;
-  if not i.catalogos_hechos or i.lotes_hechos < i.lotes_total or i.meses_hechos < cardinality(i.meses) then
+  if not i.catalogos_hechos
+     or (select count(*) from public.importacion_lotes l where l.importacion_id = p_id and l.lote < i.lotes_total) < i.lotes_total
+     or exists (select 1 from unnest(i.meses) m where not (m = any (i.meses_listos))) then
     raise exception 'Faltan pasos por terminar' using errcode = '22023';
   end if;
   update public.importaciones set estado = 'importado', terminado_en = now() where id = p_id;

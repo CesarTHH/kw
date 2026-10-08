@@ -11,6 +11,8 @@ import { puede } from "@/lib/permisos";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 
 export const metadata: Metadata = { title: "Importar Excel" };
+// La simulación lee archivos grandes: puede tardar varios minutos.
+export const maxDuration = 600;
 
 const RUTA = "/admin/importador";
 const entero = new Intl.NumberFormat("es-PE");

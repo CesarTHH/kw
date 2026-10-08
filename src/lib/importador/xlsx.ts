@@ -114,7 +114,8 @@ export function celdasDeFila(xml: string, compartidas: string[]): Celda[] {
   return fila;
 }
 
-export type HojaExcel = { nombre: string; filas: () => AsyncGenerator<Celda[]> };
+export type FilaExcel = { numero: number; celdas: Celda[] };
+export type HojaExcel = { nombre: string; filas: () => AsyncGenerator<FilaExcel> };
 
 /** Abre un .xlsx y devuelve sus hojas (en el orden del libro). */
 export function abrirExcel(b: Buffer): HojaExcel[] {
@@ -146,6 +147,7 @@ export function abrirExcel(b: Buffer): HojaExcel[] {
       nombre,
       filas: async function* () {
         let pendiente = "";
+        let numero = 0;
         for await (const parte of textoPorPartes(b, entrada)) {
           pendiente += parte;
           let fin = pendiente.lastIndexOf("</row>");
@@ -153,7 +155,11 @@ export function abrirExcel(b: Buffer): HojaExcel[] {
           fin += 6;
           const bloque = pendiente.slice(0, fin);
           pendiente = pendiente.slice(fin);
-          for (const r of bloque.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>|<row\b[^>]*\/>/g)) yield celdasDeFila(r[1] ?? "", compartidas);
+          // Primero las filas vacías (<row …/>), para que no se coman la fila siguiente.
+          for (const r of bloque.matchAll(/<row\b([^>]*?)\/>|<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
+            numero = Number(/\br="(\d+)"/.exec(r[1] ?? r[2] ?? "")?.[1]) || numero + 1;
+            yield { numero, celdas: celdasDeFila(r[3] ?? "", compartidas) };
+          }
         }
       },
     });

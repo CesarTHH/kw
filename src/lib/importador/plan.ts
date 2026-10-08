@@ -425,8 +425,8 @@ export async function analizar(
       let col: Record<string, number> | null = null;
       let n = 0;
       const comboComedorServicio = new Map<string, number>();
-      for await (const celdas of hoja.filas()) {
-        n++;
+      for await (const { numero, celdas } of hoja.filas()) {
+        n = numero;
         if (!col) {
           const cab = celdas.map((c) => limpiar(c));
           const faltan = COLUMNAS_HISTORIAL.filter((c) => !cab.includes(c));
@@ -583,7 +583,10 @@ export async function analizar(
     // Lotes de unas 5000 filas sin partir un envío.
     let actualLote: Lote = { envios: [], movimientos: [] };
     for (const g of grupos) {
-      const o = `he:${md5(`${g[0]!.usuario}|${g[0]!.ruc}|${g[0]!.tipoRegistro}|${g[0]!.serie}`)}`;
+      // El envío se identifica por su fila de menor origen: no cambia si se agregan filas al grupo.
+      let menor = origen.get(g[0]!)!;
+      for (const f of g) if (origen.get(f)! < menor) menor = origen.get(f)!;
+      const o = `he:${md5(menor)}`;
       actualLote.envios.push({
         origen_id: o,
         ruc: g[0]!.ruc,

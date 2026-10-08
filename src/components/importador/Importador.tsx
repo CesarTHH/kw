@@ -7,6 +7,15 @@ import { crearImportacion, importarPaso, pendientesImportacion, simularImportaci
 import { tamanoLegible } from "@/lib/archivos";
 import { MAX_BYTES_IMPORTACION, TIPOS_ARCHIVO, tipoArchivo } from "@/lib/importador/archivos";
 
+/** Llama a una acción del servidor sin que un corte de red o un tiempo agotado rompa la pantalla. */
+async function seguro<T>(llamada: () => Promise<{ ok: true; datos: T } | { ok: false; error: string }>) {
+  try {
+    return await llamada();
+  } catch {
+    return { ok: false as const, error: "Se perdió la conexión con el servidor o tardó demasiado." };
+  }
+}
+
 /** Subir los archivos y ejecutar la simulación. */
 export function SubirArchivos() {
   const router = useRouter();
@@ -33,7 +42,7 @@ export function SubirArchivos() {
     if (desconocido) return setError(`No se reconoce "${desconocido.name}". Usa los nombres de los archivos actuales.`);
     startTransition(async () => {
       setEstado("Preparando…");
-      const r = await crearImportacion(archivos.map((a) => ({ nombre: a.name, tamano: a.size })));
+      const r = await seguro(() => crearImportacion(archivos.map((a) => ({ nombre: a.name, tamano: a.size }))));
       if (!r.ok) {
         setEstado("");
         return setError(r.error);
@@ -51,7 +60,7 @@ export function SubirArchivos() {
         }
       }
       setEstado("Leyendo y revisando los archivos (puede tardar uno o dos minutos)…");
-      const s = await simularImportacion(r.datos.id);
+      const s = await seguro(() => simularImportacion(r.datos.id));
       setEstado("");
       if (!s.ok) {
         router.push(`/admin/importador?id=${r.datos.id}`);
@@ -138,7 +147,7 @@ export function EjecutarImportacion({ id, estado, errores }: { id: string; estad
   function ejecutar() {
     setError("");
     startTransition(async () => {
-      const p = await pendientesImportacion(id);
+      const p = await seguro(() => pendientesImportacion(id));
       if (!p.ok) return setError(p.error);
       const pasos: { paso: Paso; texto: string }[] = [
         ...(p.datos.estado !== "importando" ? [{ paso: { tipo: "inicio" } as Paso, texto: "Iniciando" }] : []),
@@ -149,11 +158,11 @@ export function EjecutarImportacion({ id, estado, errores }: { id: string; estad
       ];
       for (const [i, s] of pasos.entries()) {
         setAvance({ hechos: i, total: pasos.length, texto: s.texto });
-        let r = await importarPaso(id, s.paso);
+        let r = await seguro(() => importarPaso(id, s.paso));
         // Un corte de red no debe perder el avance: se reintenta una vez.
-        if (!r.ok && !/permiso|no coinciden|no está en curso|no existe/i.test(r.error)) r = await importarPaso(id, s.paso);
+        if (!r.ok && !/permiso|no coinciden|no está en curso|no existe/i.test(r.error)) r = await seguro(() => importarPaso(id, s.paso));
         if (!r.ok) {
-          await importarPaso(id, { tipo: "fallo", detalle: `${s.texto}: ${r.error}` });
+          await seguro(() => importarPaso(id, { tipo: "fallo", detalle: `${s.texto}: ${r.error}` }));
           setAvance(null);
           setError(`${s.texto}: ${r.error} Puedes corregir y volver a intentar; lo ya importado no se duplica.`);
           router.refresh();

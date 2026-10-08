@@ -1,7 +1,7 @@
 -- Pruebas del importador, métricas y auditoría (pgTAP).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 create temporary table u (clave text primary key, id uuid);
 grant select on u to authenticated;
@@ -86,6 +86,12 @@ select is((select tipo || ':' || total_filas || ':' || usuario_origen from publi
   'El envío histórico guarda la cuenta de origen');
 select is((select count(*)::int from public.correos_pendientes c join public.envios e on e.id = c.envio_id where e.origen_id = 'he:1'), 0,
   'La migración no envía correos');
+
+-- Un frente que solo venía del historial se activa cuando llega en el maestro.
+select public.importacion_catalogos((select id from imp), $j${"frentes": [
+  {"proyecto": "PROYECTO PRUEBA", "area": "ÁREA PRUEBA", "nombre": "FRENTE VIEJO", "sponsor": "Luis", "desde": null, "hasta": null, "migracion": false, "origen_id": "frentes:v"}]}$j$);
+select is((select activo::text || ':' || creado_por_migracion from public.frentes_trabajo where nombre = 'FRENTE VIEJO'), 'true:false',
+  'El frente creado por la migración se activa con el maestro');
 
 -- 19-21. Saldos y cierre
 select throws_ok($$select public.importacion_finalizar((select id from imp))$$, '22023', 'Faltan pasos por terminar', 'No se cierra con pasos pendientes');
