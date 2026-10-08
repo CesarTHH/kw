@@ -111,7 +111,7 @@ export function FormContacto({ para, ccMaximo, maxBytes }: { para: string; ccMax
                   type="button"
                   onClick={() => setArchivos((l) => l.filter((_, j) => j !== i))}
                   aria-label={`Quitar ${a.name}`}
-                  className="rounded p-1 hover:bg-gris-panel"
+                  className="btn-icono hover:bg-gris-panel"
                 >
                   <X className="size-4" aria-hidden />
                 </button>
@@ -122,7 +122,7 @@ export function FormContacto({ para, ccMaximo, maxBytes }: { para: string; ccMax
       </div>
 
       <div className="flex justify-end">
-        <button type="submit" className="btn-marca inline-flex items-center gap-2" disabled={pendiente}>
+        <button type="submit" className="btn-marca" disabled={pendiente}>
           <Send className="size-4" aria-hidden /> {pendiente ? "Enviando…" : "Enviar"}
         </button>
       </div>

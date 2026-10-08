@@ -23,7 +23,7 @@ export function PasswordUnaVez({ correo, password }: { correo?: string; password
       )}
       <p className="flex flex-wrap items-center gap-2">
         Contraseña temporal: <code className="rounded bg-gris-claro px-2 py-1 font-mono text-base">{password}</code>
-        <button type="button" onClick={copiar} className="btn-secundario px-2! py-1! text-xs" aria-label="Copiar contraseña">
+        <button type="button" onClick={copiar} className="btn-secundario min-h-8! px-3! py-1! text-xs" aria-label="Copiar contraseña">
           {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
           {copiado ? "Copiada" : "Copiar"}
         </button>

@@ -40,7 +40,7 @@ export function FormLogin({ next, aviso }: { next?: string; aviso?: string }) {
         <button
           type="button"
           onClick={() => setVer((v) => !v)}
-          className="absolute inset-y-0 right-2 text-gris-medio"
+          className="absolute inset-y-0 right-1 inline-flex w-9 items-center justify-center text-gris-medio hover:text-oliva"
           aria-label={ver ? "Ocultar contraseña" : "Mostrar contraseña"}
         >
           {ver ? <EyeOff className="size-5" /> : <Eye className="size-5" />}

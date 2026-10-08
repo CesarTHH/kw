@@ -70,13 +70,17 @@ export function AdicionarReducir({ ctx, borrador }: { ctx: ContextoRaciones; bor
     return m;
   }, [filas, ahora, config, saltarPlazo, registradas.mapa, reservado, catalogo]);
 
-  const filtradas = registradas.saldos.filter(
-    (s) =>
-      (!sel.frente || s.frente_id === sel.frente) &&
-      (!cs.comedor || s.comedor_id === cs.comedor) &&
-      (!cs.servicio || s.servicio_id === cs.servicio) &&
-      s.fecha >= desde &&
-      s.fecha <= (hasta || desde),
+  const filtradas = useMemo(
+    () =>
+      registradas.saldos.filter(
+        (s) =>
+          (!sel.frente || s.frente_id === sel.frente) &&
+          (!cs.comedor || s.comedor_id === cs.comedor) &&
+          (!cs.servicio || s.servicio_id === cs.servicio) &&
+          s.fecha >= desde &&
+          s.fecha <= (hasta || desde),
+      ),
+    [registradas.saldos, sel.frente, cs.comedor, cs.servicio, desde, hasta],
   );
 
   function agregar() {
@@ -260,7 +264,7 @@ export function AdicionarReducir({ ctx, borrador }: { ctx: ContextoRaciones; bor
                     <button
                       type="button"
                       onClick={() => setFilas((prev) => prev.filter((x) => x.id !== f.id))}
-                      className="rounded p-1 text-red-700 hover:bg-red-50"
+                      className="btn-icono text-red-700 hover:bg-red-50"
                       aria-label={`Quitar la fila del ${ddmmaaaa(f.fecha)}`}
                     >
                       <Trash2 className="size-4" />

@@ -160,7 +160,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<{
               </div>
               <fieldset>
                 <legend className="etiqueta">Para los roles</legend>
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid gap-1 min-[400px]:grid-cols-2">
                   {roles.map((r) => (
                     <label key={r.codigo} className="flex items-center gap-2 text-sm">
                       <input

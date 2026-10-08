@@ -208,7 +208,7 @@ export function FormRegistro({ proyectos, areas }: { proyectos: Opcion[]; areas:
                         <button
                           type="button"
                           onClick={() => setFilas((fs) => fs.filter((x) => x.clave !== f.clave))}
-                          className="rounded p-1 text-red-700 hover:bg-red-50"
+                          className="btn-icono text-red-700 hover:bg-red-50"
                           aria-label={`Quitar fila ${i + 1}`}
                         >
                           <Trash2 className="size-5" />

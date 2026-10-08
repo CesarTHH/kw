@@ -270,7 +270,8 @@ async function Historial({ ctx, sp }: { ctx: Contexto; sp: Record<string, string
                 </p>
               )}
               {detalle.envio_id && <p className="text-gris-medio">Envío relacionado: {detalle.envio_id}</p>}
-              <table className="tabla mt-2">
+              <div className="mt-2 overflow-x-auto">
+              <table className="tabla">
                 <thead>
                   <tr>
                     <th scope="col">Destinatario</th>
@@ -293,6 +294,7 @@ async function Historial({ ctx, sp }: { ctx: Contexto; sp: Record<string, string
                   ))}
                 </tbody>
               </table>
+              </div>
               {reenviar && (
                 <form action={reenviarCorreo} className="flex justify-end pt-2">
                   <input type="hidden" name="id" value={detalle.id} />

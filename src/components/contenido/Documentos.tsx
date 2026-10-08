@@ -57,10 +57,10 @@ export async function Documentos({
                   />
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <a href={`/api/archivos/${vigente.id}?descargar=1`} className="btn-marca inline-flex items-center gap-2">
+                  <a href={`/api/archivos/${vigente.id}?descargar=1`} className="btn-marca">
                     <Download className="size-4" aria-hidden /> Descargar PDF
                   </a>
-                  <a href={`/api/archivos/${vigente.id}`} target="_blank" rel="noopener" className="btn-secundario inline-flex items-center gap-2">
+                  <a href={`/api/archivos/${vigente.id}`} target="_blank" rel="noopener" className="btn-secundario">
                     <ExternalLink className="size-4" aria-hidden /> Abrir en otra pestaña
                   </a>
                 </div>

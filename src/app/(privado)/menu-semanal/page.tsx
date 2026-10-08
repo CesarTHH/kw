@@ -9,10 +9,14 @@ import { puede } from "@/lib/permisos";
 export const metadata: Metadata = { title: "Menú semanal" };
 
 export default async function Pagina({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const ctx = await requerirPermiso("menu_semanal");
-  const editar = puede(await obtenerMenu(), "menu_semanal", "editar");
-  const { ok, error } = await searchParams;
-  const [zona, config] = await Promise.all([zonaHoraria(), leerConfig(["archivos.pdf_menu_max_bytes"])]);
+  const [ctx, menu, { ok, error }, zona, config] = await Promise.all([
+    requerirPermiso("menu_semanal"),
+    obtenerMenu(),
+    searchParams,
+    zonaHoraria(),
+    leerConfig(["archivos.pdf_menu_max_bytes"]),
+  ]);
+  const editar = puede(menu, "menu_semanal", "editar");
   return (
     <>
       <Encabezado titulo="Menú semanal" ctx={ctx} />

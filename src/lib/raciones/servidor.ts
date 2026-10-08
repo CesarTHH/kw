@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { esSuperadmin, type Contexto } from "@/lib/auth";
 import { esUuid } from "@/lib/busqueda";
@@ -23,34 +24,38 @@ export async function empresaSeleccionada(ctx: Contexto): Promise<EmpresaResumen
     const v = (await cookies()).get(COOKIE_EMPRESA)?.value;
     id = esUuid(v) ? v : null;
   }
-  if (!id) return null;
+  return id ? empresaPorId(id) : null;
+}
+
+// Una sola consulta por petición aunque la pidan el layout y la página.
+const empresaPorId = cache(async (id: string): Promise<EmpresaResumen | null> => {
   const supabase = await crearClienteServidor();
   const { data } = await supabase.from("empresas").select("id, ruc, nombre_corto, activo").eq("id", id).maybeSingle();
   if (!data) return null;
   return { id: data.id as string, ruc: data.ruc as string, nombre: data.nombre_corto as string };
-}
+});
 
 /** Empresas activas (para el selector de los roles de alcance "todas"). */
-export async function empresasParaSelector(): Promise<EmpresaResumen[]> {
+export const empresasParaSelector = cache(async (): Promise<EmpresaResumen[]> => {
   const supabase = await crearClienteServidor();
   const { data } = await supabase.from("empresas").select("id, ruc, nombre_corto").eq("activo", true).order("nombre_corto").limit(2000);
   return ((data ?? []) as { id: string; ruc: string; nombre_corto: string }[]).map((e) => ({ id: e.id, ruc: e.ruc, nombre: e.nombre_corto }));
-}
+});
 
-export async function horaOficial(): Promise<string> {
+export const horaOficial = cache(async (): Promise<string> => {
   const supabase = await crearClienteServidor();
   const { data } = await supabase.rpc("hora_servidor").maybeSingle();
   const local = (data as { ahora_local?: string } | null)?.ahora_local;
   if (local) return local.replace(" ", "T").slice(0, 19);
   // Respaldo: hora de Lima calculada aquí (Perú no tiene horario de verano).
   return new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 19);
-}
+});
 
-export async function configPlazos(): Promise<ConfigPlazos> {
+export const configPlazos = cache(async (): Promise<ConfigPlazos> => {
   const supabase = await crearClienteServidor();
   const { data } = await supabase.from("config_horarios").select("modulo, regla, valor");
   return configDesdeFilas((data ?? []) as { modulo: string; regla: string; valor: unknown }[]);
-}
+});
 
 /** Catálogos que usan las pantallas de raciones para una empresa. */
 export async function cargarCatalogo(empresaId: string | null): Promise<Catalogo> {

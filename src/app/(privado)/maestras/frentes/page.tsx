@@ -42,12 +42,10 @@ export default async function PaginaFrentes({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const ctx = await requerirPermiso("maestras.frentes");
-  const menu = await obtenerMenu();
+  const [ctx, menu, sp] = await Promise.all([requerirPermiso("maestras.frentes"), obtenerMenu(), searchParams]);
   const editar = puede(menu, "maestras.frentes", "editar") && ctx.alcance === "todas";
   const exportar = puede(menu, "maestras.frentes", "exportar");
 
-  const sp = await searchParams;
   const q = terminoBusqueda(sp.q);
   const p = numeroPagina(sp.p);
   const f = filtroEstado(sp.f);
@@ -65,10 +63,30 @@ export default async function PaginaFrentes({
   if (f !== "todos") consulta = consulta.eq("activo", f === "activos");
   const [desde, hasta] = rango(p);
 
-  const [{ data: filasData, count }, { data: proyectosData }, { data: areasData }] = await Promise.all([
+  const detalle =
+    id && id !== "nuevo"
+      ? Promise.all([
+          supabase
+            .from("frentes_trabajo")
+            .select("id, proyecto_id, area_id, nombre, sponsor, contrato_desde, contrato_hasta, activo")
+            .eq("id", id)
+            .maybeSingle(),
+          supabase
+            .from("empresa_frentes")
+            .select("empresa_id, contrato_desde, contrato_hasta, activo, empresas(ruc, razon_social)")
+            .eq("frente_id", id),
+          editar
+            ? supabase.from("empresas").select("id, ruc, razon_social").eq("activo", true).order("razon_social")
+            : Promise.resolve({ data: [] }),
+        ])
+      : null;
+
+  // Lista, catálogos y detalle se consultan a la vez.
+  const [{ data: filasData, count }, { data: proyectosData }, { data: areasData }, d] = await Promise.all([
     consulta.range(desde, hasta),
     supabase.from("proyectos").select("id, nombre, activo").order("nombre"),
     supabase.from("areas").select("id, nombre, activo").order("nombre"),
+    detalle,
   ]);
   const filas = (filasData ?? []) as unknown as {
     id: string;
@@ -81,28 +99,9 @@ export default async function PaginaFrentes({
   const proyectos = (proyectosData ?? []) as Opcion[];
   const areas = (areasData ?? []) as Opcion[];
 
-  let frente: Frente | null = null;
-  let asignaciones: Asignacion[] = [];
-  let empresas: { id: string; ruc: string; razon_social: string }[] = [];
-  if (id && id !== "nuevo") {
-    const [fr, a, e] = await Promise.all([
-      supabase
-        .from("frentes_trabajo")
-        .select("id, proyecto_id, area_id, nombre, sponsor, contrato_desde, contrato_hasta, activo")
-        .eq("id", id)
-        .maybeSingle(),
-      supabase
-        .from("empresa_frentes")
-        .select("empresa_id, contrato_desde, contrato_hasta, activo, empresas(ruc, razon_social)")
-        .eq("frente_id", id),
-      editar
-        ? supabase.from("empresas").select("id, ruc, razon_social").eq("activo", true).order("razon_social")
-        : Promise.resolve({ data: [] }),
-    ]);
-    frente = (fr.data as Frente | null) ?? null;
-    asignaciones = (a.data ?? []) as unknown as Asignacion[];
-    empresas = (e.data ?? []) as typeof empresas;
-  }
+  const frente = (d?.[0].data ?? null) as Frente | null;
+  const asignaciones = (d?.[1].data ?? []) as unknown as Asignacion[];
+  const empresas = (d?.[2].data ?? []) as { id: string; ruc: string; razon_social: string }[];
 
   return (
     <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[1fr_28rem]">
@@ -186,7 +185,7 @@ export default async function PaginaFrentes({
             <h2 className="font-semibold text-oliva">{frente ? "Datos del frente" : "Nuevo frente de trabajo"}</h2>
             <input type="hidden" name="id" value={frente?.id ?? "nuevo"} />
             <EstadoLista q={q} p={p} f={f} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 min-[400px]:grid-cols-2">
               <label className="block">
                 <span className="etiqueta">Proyecto *</span>
                 <select name="proyecto_id" required defaultValue={frente?.proyecto_id ?? ""} disabled={!editar} className="campo">
@@ -226,7 +225,7 @@ export default async function PaginaFrentes({
               <span className="etiqueta">Sponsor</span>
               <input name="sponsor" maxLength={150} defaultValue={frente?.sponsor ?? ""} disabled={!editar} className="campo" />
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 min-[400px]:grid-cols-2">
               <label className="block">
                 <span className="etiqueta">Contrato desde</span>
                 <input type="date" name="contrato_desde" defaultValue={frente?.contrato_desde ?? ""} disabled={!editar} className="campo" />
@@ -306,7 +305,7 @@ export default async function PaginaFrentes({
                       ))}
                     </select>
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2 min-[400px]:grid-cols-2">
                     <label className="block">
                       <span className="etiqueta">Contrato desde</span>
                       <input type="date" name="contrato_desde" defaultValue={frente.contrato_desde ?? ""} className="campo" />

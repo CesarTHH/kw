@@ -63,14 +63,14 @@ function Estado({ estado }: { estado: string }) {
 }
 
 export default async function Pagina({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
-  const ctx = await requerirPermiso("admin.importador");
-  const enviar = puede(await obtenerMenu(), "admin.importador", "enviar") && ctx.alcance === "todas";
-  const { id: idSp } = await searchParams;
+  const [ctx, menu, { id: idSp }] = await Promise.all([requerirPermiso("admin.importador"), obtenerMenu(), searchParams]);
+  const enviar = puede(menu, "admin.importador", "enviar") && ctx.alcance === "todas";
   const id = esUuid(idSp) ? idSp : undefined;
   const supabase = await crearClienteServidor();
   const columnas = "id, created_at, estado, archivos, resumen, errores, advertencias, lotes_total, lotes_hechos, meses, meses_hechos, resultado, terminado_en";
   const [{ data: lista }, detalleR, problemasR, zona] = await Promise.all([
-    supabase.from("importaciones").select(columnas).order("created_at", { ascending: false }).limit(20),
+    // La lista solo necesita lo que muestra (el resumen puede ser grande).
+    supabase.from("importaciones").select("id, created_at, estado, archivos").order("created_at", { ascending: false }).limit(20),
     id ? supabase.from("importaciones").select(columnas).eq("id", id).maybeSingle() : Promise.resolve({ data: null }),
     id
       ? supabase.from("importacion_problemas").select("n, nivel, archivo, fila, columna, motivo").eq("importacion_id", id).order("nivel").order("n").limit(200)
@@ -200,7 +200,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<{
                     <h3 className="font-semibold text-oliva">
                       {entero.format(d.errores)} errores · {entero.format(d.advertencias)} advertencias
                     </h3>
-                    <a href={`${RUTA}/problemas?id=${d.id}`} className="btn-secundario inline-flex items-center gap-1">
+                    <a href={`${RUTA}/problemas?id=${d.id}`} className="btn-secundario">
                       <Download className="size-4" aria-hidden /> Descargar la lista
                     </a>
                   </div>

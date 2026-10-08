@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Plus, Send, Trash2 } from "lucide-react";
 import type { ModuloBorrador } from "@/lib/raciones/servidor";
 import { primeraFechaPermitida, rangoFechas, sumarDias, ultimaFechaProgramable, validarPlazo } from "@/lib/raciones/plazos";
@@ -231,7 +231,7 @@ export function Programar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
                       <button
                         type="button"
                         onClick={() => setFilas((prev) => prev.filter((x) => x.id !== f.id))}
-                        className="rounded p-1 text-red-700 hover:bg-red-50"
+                        className="btn-icono text-red-700 hover:bg-red-50"
                         aria-label={`Quitar la fila del ${ddmmaaaa(f.fecha)}`}
                       >
                         <Trash2 className="size-4" />
@@ -294,7 +294,7 @@ export function Programar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
 }
 
 /** Total programado por mes (lo registrado en el rango visible). */
-function TotalesMes({ saldos }: { saldos: { fecha: string; cantidad: number }[] }) {
+const TotalesMes = memo(function TotalesMes({ saldos }: { saldos: { fecha: string; cantidad: number }[] }) {
   const meses = new Map<string, number>();
   for (const s of saldos) meses.set(s.fecha.slice(0, 7), (meses.get(s.fecha.slice(0, 7)) ?? 0) + s.cantidad);
   if (!meses.size) return null;
@@ -310,4 +310,4 @@ function TotalesMes({ saldos }: { saldos: { fecha: string; cantidad: number }[] 
       ))}
     </p>
   );
-}
+});

@@ -9,10 +9,14 @@ import { puede } from "@/lib/permisos";
 export const metadata: Metadata = { title: "Manual, términos y condiciones" };
 
 export default async function Pagina({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const ctx = await requerirPermiso("manual_tyc");
-  const editar = puede(await obtenerMenu(), "manual_tyc", "editar");
-  const { ok, error } = await searchParams;
-  const [zona, config] = await Promise.all([zonaHoraria(), leerConfig(["archivos.documento_max_bytes"])]);
+  const [ctx, menu, { ok, error }, zona, config] = await Promise.all([
+    requerirPermiso("manual_tyc"),
+    obtenerMenu(),
+    searchParams,
+    zonaHoraria(),
+    leerConfig(["archivos.documento_max_bytes"]),
+  ]);
+  const editar = puede(menu, "manual_tyc", "editar");
   return (
     <>
       <Encabezado titulo="Manual, términos y condiciones" ctx={ctx} />

@@ -56,7 +56,7 @@ export default async function PaginaCatalogos({
             key={s.codigo}
             href={urlCon(RUTA, { c: s.codigo })}
             aria-current={s.codigo === c ? "page" : undefined}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+            className={`inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-4 text-sm font-semibold ${
               s.codigo === c ? "bg-oliva text-white" : "bg-white text-oliva hover:bg-gris-panel"
             }`}
           >
@@ -503,7 +503,7 @@ async function ComposicionEstandar({ editar, ok, error }: { editar: boolean; ok?
         Cantidad de cada producto en <strong>un</strong> refrigerio estándar (0 = no lo incluye). Precio vigente del estándar:{" "}
         <strong>{precioEstandar != null ? `S/ ${Number(precioEstandar).toFixed(2)}` : "sin precio"}</strong> (se cambia en «Precio del estándar»).
       </p>
-      <form action={guardarEstandar} className="overflow-hidden rounded-xl bg-white shadow">
+      <form action={guardarEstandar} className="overflow-x-auto rounded-xl bg-white shadow">
         <table className="tabla">
           <thead>
             <tr>

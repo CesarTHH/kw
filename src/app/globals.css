@@ -18,6 +18,11 @@
   }
   body {
     @apply bg-gris-claro text-neutral-800 antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Las tablas anchas se desplazan dentro de su contenedor, nunca la página entera. */
+  main {
+    @apply min-w-0;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-marca;
@@ -26,20 +31,21 @@
 
 @layer components {
   .btn-marca {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-marca px-5 py-2.5 font-semibold text-white shadow
-           transition hover:bg-marca-oscuro disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-marca px-5 py-2 font-semibold text-white shadow
+           transition hover:bg-marca-oscuro active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0;
   }
   .btn-oliva {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-oliva px-8 py-2.5 font-semibold text-white shadow
-           transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-oliva px-8 py-2 font-semibold text-white shadow
+           transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0;
   }
   .btn-secundario {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gris-medio bg-white px-4 py-2 font-medium
-           text-oliva transition hover:bg-gris-claro disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gris-medio bg-white px-4 py-1.5 font-medium
+           text-oliva transition hover:bg-gris-claro active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0;
   }
   .campo {
-    @apply block w-full rounded border border-gris-medio/60 bg-white px-3 py-2 text-sm text-neutral-800
-           placeholder:text-gris-medio focus:border-marca focus:outline-none;
+    @apply block min-h-10 w-full min-w-0 rounded-lg border border-gris-medio/60 bg-white px-3 py-2 text-base text-neutral-800
+           transition-colors placeholder:text-gris-medio focus:border-marca focus:ring-2 focus:ring-marca/20 focus:outline-none
+           disabled:bg-gris-claro disabled:text-gris-medio sm:text-sm;
   }
   .etiqueta {
     @apply mb-1 block text-sm font-semibold text-oliva;
@@ -51,18 +57,23 @@
     @apply w-full border-collapse bg-white text-sm;
   }
   .tabla th {
-    @apply border-r border-[#c9b48a] bg-oliva px-3 py-2 text-left font-normal text-white last:border-r-0;
+    @apply border-r border-[#c9b48a] bg-oliva px-3 py-2.5 text-left align-middle font-normal whitespace-nowrap text-white last:border-r-0;
   }
   .tabla td {
-    @apply border-b border-gris-claro px-3 py-2;
+    @apply border-b border-gris-claro px-3 py-2 align-middle;
   }
   .tabla tbody tr:nth-child(odd) {
     @apply bg-gris-claro/60;
   }
   .alerta-error {
-    @apply rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800;
+    @apply rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800;
   }
   .alerta-ok {
-    @apply rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800;
+    @apply rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800;
+  }
+  /* Botón cuadrado solo con ícono (eliminar, mostrar contraseña…): área táctil de 40 px. */
+  .btn-icono {
+    @apply inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-oliva transition hover:bg-gris-claro
+           disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:size-5 [&_svg]:shrink-0;
   }
 }

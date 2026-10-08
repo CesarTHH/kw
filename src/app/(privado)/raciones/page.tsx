@@ -18,14 +18,12 @@ const entero = new Intl.NumberFormat("es-PE");
 type Fila = { fecha: string; comedor_id: string; servicio_id: string; cantidad: number };
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const ctx = await requerirPermiso("raciones");
-  const menu = await obtenerMenu();
+  const [ctx, menu, sp, ahora] = await Promise.all([requerirPermiso("raciones"), obtenerMenu(), searchParams, horaOficial()]);
   if (!puede(menu, "raciones.dashboard")) {
     const primera = hijos(menu, "raciones").find((m) => m.ruta && m.ruta !== "/raciones");
     redirect(primera?.ruta ?? "/menu");
   }
-  const sp = await searchParams;
-  const hoy = (await horaOficial()).slice(0, 10);
+  const hoy = ahora.slice(0, 10);
   const fecha = sp.fecha && /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha) ? sp.fecha : hoy;
   const empresa = await empresaSeleccionada(ctx);
   const verCosto = ctx.alcance === "todas";
@@ -113,7 +111,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                     href={urlCon("/raciones", { fecha: fecha === hoy ? undefined : fecha, servicio: id })}
                     aria-current={id === servicioSel ? "true" : undefined}
                     title={`${nombreServicio.get(id)}: ${entero.format(n)} raciones`}
-                    className={`grid grid-cols-[10rem_1fr_4rem] items-center gap-3 rounded px-2 py-1.5 text-sm hover:bg-gris-claro ${
+                    className={`grid grid-cols-[minmax(0,7rem)_1fr_auto] items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gris-claro sm:grid-cols-[10rem_1fr_4rem] sm:gap-3 ${
                       id === servicioSel ? "bg-gris-claro font-semibold" : ""
                     }`}
                   >
@@ -134,7 +132,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {tablaComedores.length === 0 ? (
             <p className="py-6 text-center text-sm text-gris-medio">Sin datos.</p>
           ) : (
-            <table className="tabla mt-3">
+            <div className="mt-3 overflow-x-auto">
+            <table className="tabla">
               <thead>
                 <tr>
                   <th scope="col">Comedor</th>
@@ -152,18 +151,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       </div>
 
-      <section className="rounded-xl bg-white p-5 shadow">
+      <section className="rounded-xl bg-white p-4 shadow sm:p-5">
         <h2 className="mb-4 font-semibold text-oliva">
           Semana del {ddmm(inicioSemana)} al {ddmm(finSemana)}
         </h2>
-        <ol className="grid h-48 grid-cols-7 items-end gap-3">
+        <ol className="grid h-48 grid-cols-7 items-end gap-1 sm:gap-3">
           {semana.map((d, i) => (
             <li key={d.fecha} className="flex h-full flex-col items-center justify-end gap-1">
-              <span className="text-xs tabular-nums text-neutral-700">{d.total ? entero.format(d.total) : ""}</span>
+              <span className="text-[10px] tabular-nums text-neutral-700 sm:text-xs">{d.total ? entero.format(d.total) : ""}</span>
               <Link
                 href={urlCon("/raciones", { fecha: d.fecha })}
                 title={`${DIAS[i]} ${ddmm(d.fecha)}: ${entero.format(d.total)} raciones`}
@@ -174,8 +174,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   style={{ height: `${d.total ? Math.max(3, (d.total / maxSemana) * 100) : 0}%` }}
                 />
               </Link>
-              <span className={`text-xs ${d.fecha === fecha ? "font-semibold text-marca" : "text-gris-medio"}`}>
-                {DIAS[i]} {ddmm(d.fecha)}
+              <span
+                className={`flex flex-col items-center text-center text-xs leading-tight ${d.fecha === fecha ? "font-semibold text-marca" : "text-gris-medio"}`}
+              >
+                <span>{DIAS[i]}</span>
+                <span className="hidden sm:inline">{ddmm(d.fecha)}</span>
               </span>
             </li>
           ))}

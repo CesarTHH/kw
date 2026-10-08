@@ -36,8 +36,7 @@ type Metricas = {
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 
 export default async function Pagina({ searchParams }: { searchParams: Promise<{ dias?: string }> }) {
-  const ctx = await requerirPermiso("admin.metricas");
-  const { dias: d } = await searchParams;
+  const [ctx, { dias: d }] = await Promise.all([requerirPermiso("admin.metricas"), searchParams]);
   const dias = PERIODOS.find((p) => String(p) === d) ?? 30;
   const supabase = await crearClienteServidor();
   const [{ data, error }, zona] = await Promise.all([supabase.rpc("metricas_uso", { p_dias: dias }), zonaHoraria()]);
@@ -54,7 +53,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<{
               key={p}
               href={urlCon(RUTA, { dias: p === 30 ? undefined : p })}
               aria-current={p === dias ? "page" : undefined}
-              className={`rounded-full px-3 py-1 font-semibold ${p === dias ? "bg-oliva text-white" : "bg-white text-oliva shadow hover:bg-gris-claro"}`}
+              className={`inline-flex min-h-10 items-center rounded-full px-4 font-semibold ${p === dias ? "bg-oliva text-white" : "bg-white text-oliva shadow hover:bg-gris-claro"}`}
             >
               Últimos {p} días
             </Link>
@@ -111,7 +110,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<{
                 {m.empresas_sin_actividad.length === 0 ? (
                   <p className="py-6 text-center text-sm text-gris-medio">Todas las empresas activas enviaron algo en el periodo.</p>
                 ) : (
-                  <div className="mt-3 max-h-96 overflow-y-auto">
+                  <div className="mt-3 max-h-96 overflow-auto">
                     <table className="tabla">
                       <thead>
                         <tr>
@@ -221,7 +220,7 @@ function Lista({ filas, vacio }: { filas: { etiqueta: string; valor: number }[];
   return (
     <ul className="mt-3 space-y-2 text-sm">
       {filas.map((f) => (
-        <li key={f.etiqueta} className="grid grid-cols-[11rem_1fr_3.5rem] items-center gap-2">
+        <li key={f.etiqueta} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 sm:grid-cols-[11rem_1fr_3.5rem]">
           <span className="truncate">{f.etiqueta}</span>
           <span className="h-4 rounded-r bg-gris-claro" aria-hidden>
             <span className="block h-4 rounded-r bg-marca" style={{ width: `${f.valor ? Math.max(2, (f.valor / maximo) * 100) : 0}%` }} />

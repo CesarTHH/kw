@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
+import type { AlertaVisible } from "@/components/contenido/AlertasLogin";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { puede, type Accion, type ItemMenu } from "@/lib/permisos";
 
@@ -22,32 +23,34 @@ export type Contexto = {
   activo: boolean;
 };
 
-/** Usuario autenticado + su perfil. Se calcula una vez por petición. */
-export const obtenerContexto = cache(async (): Promise<Contexto | null> => {
-  const supabase = await crearClienteServidor();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+type Sesion = { contexto: Contexto | null; menu: ItemMenu[]; alertas: AlertaVisible[] };
 
-  const { data, error } = await supabase.rpc("mi_contexto").maybeSingle();
+/**
+ * Perfil, menú y alertas del usuario en UNA sola llamada a la base de datos,
+ * una vez por petición. El proxy ya validó la firma del token (getClaims);
+ * aquí el token lo vuelve a verificar la base de datos (PostgREST), así que un
+ * token inválido simplemente no devuelve perfil.
+ */
+const obtenerSesion = cache(async (): Promise<Sesion> => {
+  const supabase = await crearClienteServidor();
+  const { data, error } = await supabase.rpc("mi_sesion");
   if (error) {
-    console.error("[auth] mi_contexto falló:", error.code);
-    return null;
+    // Sin sesión PostgREST responde 401/403: no es un error de la app.
+    if (error.code !== "PGRST301" && error.code !== "42501") console.error("[auth] mi_sesion falló:", error.code);
+    return { contexto: null, menu: [], alertas: [] };
   }
-  return (data as Contexto | null) ?? null;
+  const s = (data ?? {}) as Partial<Sesion>;
+  return { contexto: s.contexto ?? null, menu: s.menu ?? [], alertas: s.alertas ?? [] };
 });
+
+/** Usuario autenticado + su perfil. Se calcula una vez por petición. */
+export const obtenerContexto = cache(async (): Promise<Contexto | null> => (await obtenerSesion()).contexto);
 
 /** Menús y acciones permitidas al usuario. Se calcula una vez por petición. */
-export const obtenerMenu = cache(async (): Promise<ItemMenu[]> => {
-  const supabase = await crearClienteServidor();
-  const { data, error } = await supabase.rpc("mi_menu");
-  if (error) {
-    console.error("[auth] mi_menu falló:", error.code);
-    return [];
-  }
-  return (data ?? []) as ItemMenu[];
-});
+export const obtenerMenu = cache(async (): Promise<ItemMenu[]> => (await obtenerSesion()).menu);
+
+/** Alertas post-login vigentes para el usuario. */
+export const obtenerAlertas = cache(async (): Promise<AlertaVisible[]> => (await obtenerSesion()).alertas);
 
 /**
  * Exige una sesión completa y válida. Redirige según el estado del usuario:

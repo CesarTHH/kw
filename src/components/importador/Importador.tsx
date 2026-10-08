@@ -108,7 +108,7 @@ export function SubirArchivos() {
                   type="button"
                   onClick={() => setArchivos((x) => x.filter((y) => y !== a))}
                   disabled={pendiente}
-                  className="rounded p-1 text-oliva hover:bg-gris-claro"
+                  className="btn-icono"
                   aria-label={`Quitar ${a.name}`}
                 >
                   <X className="size-4" aria-hidden />
@@ -128,7 +128,7 @@ export function SubirArchivos() {
           {estado}
         </p>
       )}
-      <button type="button" onClick={subir} disabled={pendiente || !archivos.length} className="btn-marca inline-flex items-center gap-2">
+      <button type="button" onClick={subir} disabled={pendiente || !archivos.length} className="btn-marca">
         <Upload className="size-4" aria-hidden /> Subir y simular
       </button>
     </section>
@@ -137,7 +137,6 @@ export function SubirArchivos() {
 
 /** Ejecuta (o continúa) la importación paso a paso, con barra de avance. */
 export function EjecutarImportacion({ id, estado, errores }: { id: string; estado: string; errores: number }) {
-  const router = useRouter();
   const [acepto, setAcepto] = useState(false);
   const [avance, setAvance] = useState<{ hechos: number; total: number; texto: string } | null>(null);
   const [error, setError] = useState("");
@@ -165,12 +164,11 @@ export function EjecutarImportacion({ id, estado, errores }: { id: string; estad
           await seguro(() => importarPaso(id, { tipo: "fallo", detalle: `${s.texto}: ${r.error}` }));
           setAvance(null);
           setError(`${s.texto}: ${r.error} Puedes corregir y volver a intentar; lo ya importado no se duplica.`);
-          router.refresh();
           return;
         }
       }
+      // La acción final ya actualiza la página (revalidatePath).
       setAvance({ hechos: 1, total: 1, texto: "Listo" });
-      router.refresh();
     });
   }
 
@@ -202,7 +200,7 @@ export function EjecutarImportacion({ id, estado, errores }: { id: string; estad
         type="button"
         onClick={ejecutar}
         disabled={pendiente || (errores > 0 && !continuar && !acepto)}
-        className="btn-marca inline-flex items-center gap-2"
+        className="btn-marca"
       >
         <Play className="size-4" aria-hidden /> {continuar ? "Continuar la importación" : "Importar"}
       </button>

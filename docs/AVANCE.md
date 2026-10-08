@@ -138,3 +138,13 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
   - Reglas de docs/MAPEO_MIGRACION.md: frentes del historial que no están en el maestro se crean inactivos; envíos agrupados por cuenta, empresa y tipo (menos de 5 minutos entre filas); traslados emparejados; la migración no envía correos.
   - Con los archivos reales: 320 163 filas leídas en ~10 segundos, 26 929 envíos, 2 errores (dos tarifas de DESAYUNO que se cruzan) y 37 advertencias.
 - 25 pruebas nuevas de base de datos (219 en total) y pruebas unitarias del lector de Excel/CSV y de la simulación. Revisión independiente: hallazgos corregidos.
+
+## Mejora de rendimiento y diseño (08/10/2026)
+
+- **Carga más rápida:** antes cada página hacía unas 5 consultas seguidas a la base de datos (sesión, perfil, menú, alertas). Ahora la sesión se verifica sin salir del servidor (firma del token) y perfil + menú + alertas llegan en **una sola consulta** (`mi_sesion`).
+- Consultas de cada pantalla en paralelo (lista + detalle + catálogos a la vez) y resultados reutilizados dentro de la misma petición.
+- 16 índices nuevos en llaves foráneas (búsquedas y borrados más rápidos).
+- **Pantallas de carga** (esqueletos) al navegar: la respuesta se ve al instante.
+- Menos trabajo en el navegador: tablas y totales no se recalculan si no cambian.
+- Importador: descargas y firmas en paralelo; la lista solo trae lo que muestra.
+- **Diseño** (mismos colores y funciones): encabezado fijo con botones de inicio y salida centrados; menú principal en cuadrícula de 2 a 6 columnas; botones e íconos del mismo tamaño y centrados; campos de 40 px de alto (cómodos en el celular); tablas con desplazamiento horizontal en pantallas pequeñas; formularios en una columna en celulares; gráfico semanal y pestañas adaptados al celular.

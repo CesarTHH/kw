@@ -17,10 +17,9 @@ const fechaHora = new Intl.DateTimeFormat("es-PE", { dateStyle: "short", timeSty
 const ddmmaaaa = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(0, 4)}`;
 
 export default async function Consulta({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const ctx = await requerirPermiso("raciones.consulta");
-  const exportar = puede(await obtenerMenu(), "raciones.consulta", "exportar");
-  const sp = await searchParams;
-  const hoy = (await horaOficial()).slice(0, 10);
+  const [ctx, menu, sp, ahora] = await Promise.all([requerirPermiso("raciones.consulta"), obtenerMenu(), searchParams, horaOficial()]);
+  const exportar = puede(menu, "raciones.consulta", "exportar");
+  const hoy = ahora.slice(0, 10);
   const f = leerFiltros(sp, hoy);
   const p = numeroPagina(sp.p);
   const empresa = await empresaSeleccionada(ctx);

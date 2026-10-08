@@ -52,17 +52,19 @@ export async function crearImportacion(
   });
   if (error || typeof id !== "string") return { ok: false, error: error ? mensaje(error) : "No se pudo registrar la importación." };
 
-  const subidas: { ruta: string; url: string; tipo: string }[] = [];
-  for (const [n, a] of datos.data.entries()) {
-    const ruta = rutaArchivo(id, n, a.nombre);
-    const { data, error: e } = await supabase.storage.from(BUCKET).createSignedUploadUrl(ruta);
-    if (e || !data) {
-      await registrarError("importador firmar subida", e?.message);
-      return { ok: false, error: "No se pudo preparar la subida de los archivos." };
-    }
-    subidas.push({ ruta, url: data.signedUrl, tipo: MIME_ARCHIVO(a.nombre) });
+  const firmas = await Promise.all(
+    datos.data.map(async (a, n) => {
+      const ruta = rutaArchivo(id, n, a.nombre);
+      const { data, error: e } = await supabase.storage.from(BUCKET).createSignedUploadUrl(ruta);
+      return e || !data ? { error: e?.message ?? "sin url" } : { ruta, url: data.signedUrl, tipo: MIME_ARCHIVO(a.nombre) };
+    }),
+  );
+  const fallo = firmas.find((f) => "error" in f);
+  if (fallo) {
+    await registrarError("importador firmar subida", "error" in fallo ? fallo.error : "");
+    return { ok: false, error: "No se pudo preparar la subida de los archivos." };
   }
-  return { ok: true, datos: { id, subidas } };
+  return { ok: true, datos: { id, subidas: firmas as { ruta: string; url: string; tipo: string }[] } };
 }
 
 // ---------------------------------------------------------------------------
@@ -139,12 +141,16 @@ export async function simularImportacion(id: string): Promise<Respuesta> {
 
   try {
     const archivos: Archivo[] = [];
+    // Archivos y catálogos actuales se piden a la vez.
+    const [descargas, actual] = await Promise.all([
+      Promise.all(reg.archivos.map((a, n) => supabase.storage.from(BUCKET).download(rutaArchivo(id, n, a.nombre)))),
+      catalogosActuales(supabase),
+    ]);
     for (const [n, a] of reg.archivos.entries()) {
-      const { data, error } = await supabase.storage.from(BUCKET).download(rutaArchivo(id, n, a.nombre));
-      if (error || !data) return { ok: false, error: `No se encontró el archivo "${a.nombre}". Vuelve a subirlo.` };
-      archivos.push({ nombre: a.nombre, bytes: Buffer.from(await data.arrayBuffer()) });
+      const d = descargas[n]!;
+      if (d.error || !d.data) return { ok: false, error: `No se encontró el archivo "${a.nombre}". Vuelve a subirlo.` };
+      archivos.push({ nombre: a.nombre, bytes: Buffer.from(await d.data.arrayBuffer()) });
     }
-    const actual = await catalogosActuales(supabase);
     const r = await analizar(archivos, actual, async (origenes) => {
       const { data, error } = await supabase.rpc("importacion_existentes", { p_origenes: origenes });
       if (error) throw new Error(error.message);

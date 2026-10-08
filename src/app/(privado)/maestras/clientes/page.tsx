@@ -51,13 +51,11 @@ export default async function PaginaClientes({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const ctx = await requerirPermiso("maestras.clientes");
-  const menu = await obtenerMenu();
+  const [ctx, menu, sp] = await Promise.all([requerirPermiso("maestras.clientes"), obtenerMenu(), searchParams]);
   const editar = puede(menu, "maestras.clientes", "editar");
   const exportar = puede(menu, "maestras.clientes", "exportar");
   const crear = editar && ctx.alcance === "todas";
 
-  const sp = await searchParams;
   const q = terminoBusqueda(sp.q);
   const p = numeroPagina(sp.p);
   const f = filtroEstado(sp.f);
@@ -72,13 +70,9 @@ export default async function PaginaClientes({
   if (q) consulta = consulta.or(filtroOr(["ruc", "razon_social", "nombre_corto"], q));
   if (f !== "todos") consulta = consulta.eq("activo", f === "activos");
   const [desde, hasta] = rango(p);
-  const { data: filas, count } = await consulta.range(desde, hasta);
-
-  let empresa: Empresa | null = null;
-  let contactos: Contacto[] = [];
-  let asignaciones: Asignacion[] = [];
-  if (id && id !== "nuevo") {
-    const [e, c, a] = await Promise.all([
+  const detalle =
+    id && id !== "nuevo"
+      ? Promise.all([
       supabase.from("empresas").select("id, ruc, razon_social, nombre_corto, direccion, tipo, telefonos, activo").eq("id", id).maybeSingle(),
       supabase
         .from("empresa_contactos")
@@ -91,11 +85,13 @@ export default async function PaginaClientes({
         .from("empresa_frentes")
         .select("frente_id, contrato_desde, contrato_hasta, activo, frentes_trabajo(nombre, proyectos(nombre), areas(nombre))")
         .eq("empresa_id", id),
-    ]);
-    empresa = (e.data as Empresa | null) ?? null;
-    contactos = (c.data ?? []) as Contacto[];
-    asignaciones = (a.data ?? []) as unknown as Asignacion[];
-  }
+        ])
+      : null;
+  // La lista y el detalle se consultan a la vez.
+  const [{ data: filas, count }, d] = await Promise.all([consulta.range(desde, hasta), detalle]);
+  const empresa = (d?.[0].data ?? null) as Empresa | null;
+  const contactos = (d?.[1].data ?? []) as Contacto[];
+  const asignaciones = (d?.[2].data ?? []) as unknown as Asignacion[];
 
   return (
     <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[1fr_28rem]">
@@ -184,7 +180,7 @@ export default async function PaginaClientes({
               <span className="etiqueta">Nombre corto *</span>
               <input name="nombre_corto" required maxLength={120} defaultValue={empresa?.nombre_corto} disabled={!editar} className="campo" />
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 min-[400px]:grid-cols-2">
               <label className="block">
                 <span className="etiqueta">Tipo</span>
                 <select name="tipo" defaultValue={empresa?.tipo ?? "empresa"} disabled={!editar} className="campo">
@@ -307,7 +303,7 @@ function FormContacto({
       <input type="hidden" name="empresa_id" value={empresaId} />
       <input type="hidden" name="contacto_id" value={contacto?.id ?? "nuevo"} />
       <EstadoLista q={lista.q} f={lista.f} p={p} />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-2 min-[400px]:grid-cols-2">
         <label className="block">
           <span className="etiqueta">Tipo *</span>
           <select name="tipo" defaultValue={contacto?.tipo ?? "gestion_raciones"} className="campo">

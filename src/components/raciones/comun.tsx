@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { consultarSaldos, enviarRaciones, guardarBorrador, type ResultadoEnvio } from "@/app/(privado)/raciones/acciones";
 import type { ModuloBorrador } from "@/lib/raciones/servidor";
 import { clave as claveDe, type Catalogo, type FilaBorrador, type Saldo } from "@/lib/raciones/tipos";
@@ -93,7 +93,8 @@ export function useEnvio(modulo: ModuloBorrador, empresaId: string) {
       alTerminar(r.ok);
     });
   };
-  return { enviar, pendiente, resultado, limpiar: () => setResultado(null) };
+  const limpiar = useCallback(() => setResultado(null), []);
+  return { enviar, pendiente, resultado, limpiar };
 }
 
 export function Mensaje({ tipo, children }: { tipo: "ok" | "error" | "aviso"; children: React.ReactNode }) {
@@ -183,8 +184,8 @@ export function FueraDePlazo({
   );
 }
 
-/** Tabla de raciones ya registradas (solo lectura). */
-export function TablaRegistradas({
+/** Tabla de raciones ya registradas (solo lectura). Memorizada: no se vuelve a dibujar al escribir en el formulario. */
+export const TablaRegistradas = memo(function TablaRegistradas({
   saldos,
   catalogo,
   titulo = "Raciones registradas",
@@ -198,7 +199,7 @@ export function TablaRegistradas({
   accion?: { texto: string; onClick: (s: Saldo) => void; activo?: (s: Saldo) => boolean };
 }) {
   const n = useNombres(catalogo);
-  const total = saldos.reduce((s, x) => s + x.cantidad, 0);
+  const total = useMemo(() => saldos.reduce((s, x) => s + x.cantidad, 0), [saldos]);
   return (
     <section className="space-y-2">
       <h2 className="font-semibold text-oliva">
@@ -236,7 +237,7 @@ export function TablaRegistradas({
                 <td className="text-right tabular-nums">{s.cantidad}</td>
                 {accion && (
                   <td>
-                    <button type="button" className="btn-secundario px-2! py-1! text-xs" onClick={() => accion.onClick(s)}>
+                    <button type="button" className="btn-secundario min-h-8! px-3! py-1! text-xs" onClick={() => accion.onClick(s)}>
                       {accion.texto}
                     </button>
                   </td>
@@ -266,7 +267,7 @@ export function TablaRegistradas({
       </div>
     </section>
   );
-}
+});
 
 /** Selects encadenados Proyecto → Área → Frente. */
 export function SelectFrente({

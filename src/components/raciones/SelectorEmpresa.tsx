@@ -15,15 +15,15 @@ export function SelectorEmpresa({
   const ruta = usePathname();
   const form = useRef<HTMLFormElement>(null);
   return (
-    <form ref={form} action={seleccionarEmpresa} className="flex items-center gap-2">
+    <form ref={form} action={seleccionarEmpresa} className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
       <input type="hidden" name="volver" value={ruta} />
-      <label className="flex items-center gap-2 text-sm font-semibold text-oliva">
+      <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-oliva">
         Empresa
         <select
           name="empresa"
           defaultValue={actual ?? ""}
           onChange={() => form.current?.requestSubmit()}
-          className="campo w-72 max-w-full font-normal"
+          className="campo w-full min-w-0 font-normal sm:w-80"
         >
           <option value="">— Seleccionar empresa —</option>
           {empresas.map((e) => (

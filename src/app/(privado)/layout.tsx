@@ -1,14 +1,10 @@
-import { AlertasLogin, type AlertaVisible } from "@/components/contenido/AlertasLogin";
-import { requerirSesion } from "@/lib/auth";
-import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { AlertasLogin } from "@/components/contenido/AlertasLogin";
+import { obtenerAlertas, requerirSesion } from "@/lib/auth";
 
 // Todo lo que está dentro de (privado) exige una sesión completa y activa.
+// Perfil, menú y alertas llegan en una sola consulta (ver obtenerSesion).
 export default async function LayoutPrivado({ children }: { children: React.ReactNode }) {
-  await requerirSesion();
-  // Alertas post-login vigentes para el rol del usuario (las "una sola vez" ya vistas no vuelven).
-  const supabase = await crearClienteServidor();
-  const { data } = await supabase.rpc("mis_alertas");
-  const alertas = (data ?? []) as AlertaVisible[];
+  const [, alertas] = await Promise.all([requerirSesion(), obtenerAlertas()]);
   return (
     <div className="flex min-h-dvh flex-col">
       {children}

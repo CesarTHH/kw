@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ArrowRight, Plus, Send, Trash2 } from "lucide-react";
 import type { ModuloBorrador } from "@/lib/raciones/servidor";
 import { primeraFechaPermitida, validarPlazo } from "@/lib/raciones/plazos";
@@ -64,13 +64,17 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
     return m;
   }, [filas, ahora, config, saltarPlazo, catalogo]);
 
-  function elegir(s: Saldo) {
-    envio.limpiar();
-    setOrigen(s);
-    setDestino({ comedor: "", servicio: "" });
-    setCantidad("");
-    setAviso("");
-  }
+  const limpiarEnvio = envio.limpiar;
+  const elegir = useCallback(
+    (s: Saldo) => {
+      limpiarEnvio();
+      setOrigen(s);
+      setDestino({ comedor: "", servicio: "" });
+      setCantidad("");
+      setAviso("");
+    },
+    [limpiarEnvio],
+  );
 
   function agregar() {
     if (!origen) return;
@@ -111,6 +115,15 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
   const total = filas.reduce((s, f) => s + f.cantidad, 0);
   const puedeEnviar = filas.length > 0 && problemas.size === 0 && (!saltarPlazo || motivo.trim().length >= 5);
 
+  const habilitado = plazo.ok || saltarPlazo;
+  const accionTabla = useMemo(
+    () =>
+      habilitado
+        ? { texto: "Trasladar", onClick: elegir, activo: (s: Saldo) => !!origen && claveDe(s) === claveDe(origen) }
+        : undefined,
+    [habilitado, elegir, origen],
+  );
+
   return (
     <div className="space-y-6">
       <section className="panel space-y-3">
@@ -145,11 +158,7 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
         catalogo={catalogo}
         cargando={registradas.cargando}
         titulo={`Raciones registradas el ${ddmmaaaa(fecha)}`}
-        accion={
-          plazo.ok || saltarPlazo
-            ? { texto: "Trasladar", onClick: elegir, activo: (s) => !!origen && claveDe(s) === claveDe(origen) }
-            : undefined
-        }
+        accion={accionTabla}
       />
 
       {origen && (
@@ -239,8 +248,8 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
                   <td>
                     {n.comedor(f.comedor_id)} · {n.servicio(f.servicio_id)} <span className="font-semibold text-red-800">−{f.cantidad}</span>
                   </td>
-                  <td aria-hidden>
-                    <ArrowRight className="size-4 text-gris-medio" />
+                  <td className="text-center">
+                    <ArrowRight className="mx-auto size-4 text-gris-medio" aria-label="hacia" />
                   </td>
                   <td>
                     {n.comedor(f.comedor_destino_id ?? "")} · {n.servicio(f.servicio_destino_id ?? "")}{" "}
@@ -251,7 +260,7 @@ export function Trasladar({ ctx, borrador }: { ctx: ContextoRaciones; borrador: 
                     <button
                       type="button"
                       onClick={() => setFilas((prev) => prev.filter((x) => x.id !== f.id))}
-                      className="rounded p-1 text-red-700 hover:bg-red-50"
+                      className="btn-icono text-red-700 hover:bg-red-50"
                       aria-label={`Quitar el traslado del ${ddmmaaaa(f.fecha)}`}
                     >
                       <Trash2 className="size-4" />

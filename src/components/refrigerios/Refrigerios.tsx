@@ -198,7 +198,7 @@ export function Refrigerios({ datos, borrador }: { datos: DatosRefrigerios; borr
           <p className="text-sm">Solo puedes consultar los refrigerios registrados.</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-2 min-[400px]:grid-cols-2">
               <label className="block">
                 <span className="etiqueta">Desde *</span>
                 <input type="date" value={desde} min={saltarPlazo ? undefined : primera} onChange={(e) => setDesde(e.target.value)} className="campo" />
@@ -405,6 +405,7 @@ export function Refrigerios({ datos, borrador }: { datos: DatosRefrigerios; borr
 function TablaProductos({ items, precios, onChange }: { items: ItemPedido[]; precios: Precios; onChange: (i: ItemPedido[]) => void }) {
   if (!items.length) return <p className="text-xs text-gris-medio">Aún no agregas productos especiales.</p>;
   return (
+    <div className="max-w-full overflow-x-auto">
     <table className="tabla text-xs">
       <thead>
         <tr>
@@ -441,7 +442,7 @@ function TablaProductos({ items, precios, onChange }: { items: ItemPedido[]; pre
                 <button
                   type="button"
                   onClick={() => onChange(items.filter((x) => x.producto_id !== it.producto_id))}
-                  className="rounded p-1 text-red-700 hover:bg-red-50"
+                  className="btn-icono text-red-700 hover:bg-red-50"
                   aria-label={`Quitar ${p?.nombre ?? "producto"}`}
                 >
                   <Trash2 className="size-3.5" />
@@ -452,6 +453,7 @@ function TablaProductos({ items, precios, onChange }: { items: ItemPedido[]; pre
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -507,7 +509,7 @@ function FilaPedido({
         <td>{TIPOS_REFRIGERIO[p.tipo]}</td>
         <td className="uppercase">{p.encargado}</td>
         <td>
-          <button type="button" onClick={onQuitar} className="rounded p-1 text-red-700 hover:bg-red-50" aria-label={`Quitar el pedido del ${ddmmaaaa(p.fecha)}`}>
+          <button type="button" onClick={onQuitar} className="btn-icono text-red-700 hover:bg-red-50" aria-label={`Quitar el pedido del ${ddmmaaaa(p.fecha)}`}>
             <Trash2 className="size-4" />
           </button>
         </td>
@@ -517,8 +519,8 @@ function FilaPedido({
           <td colSpan={9} className="bg-gris-claro">
             <div className="flex flex-wrap items-start gap-3">
               <TablaProductos items={p.items} precios={precios} onChange={(items) => onChange({ ...p, items })} />
-              <div className="flex items-end gap-2">
-                <select value={producto} onChange={(e) => setProducto(e.target.value)} className="campo w-56" aria-label="Producto a agregar">
+              <div className="flex w-full items-end gap-2 sm:w-auto">
+                <select value={producto} onChange={(e) => setProducto(e.target.value)} className="campo w-full min-w-0 sm:w-56" aria-label="Producto a agregar">
                   <option value="">Agregar producto…</option>
                   {precios.productos
                     .filter((x) => x.precio != null && !p.items.some((i) => i.producto_id === x.id))
@@ -655,7 +657,7 @@ function Registrados({
                             aria-label="Cantidad a reducir"
                             className="campo w-16 py-1!"
                           />
-                          <button type="button" className="btn-marca px-2! py-1! text-xs" disabled={pendiente} onClick={() => reducir(p)}>
+                          <button type="button" className="btn-marca min-h-8! px-3! py-1! text-xs" disabled={pendiente} onClick={() => reducir(p)}>
                             {pendiente ? "…" : "Reducir"}
                           </button>
                           <button type="button" className="text-xs underline" onClick={() => setReduciendo(null)}>
@@ -665,7 +667,7 @@ function Registrados({
                       ) : puedeReducir ? (
                         <button
                           type="button"
-                          className="btn-secundario px-2! py-1! text-xs"
+                          className="btn-secundario min-h-8! px-3! py-1! text-xs"
                           onClick={() => {
                             setResultado(null);
                             setReduciendo(p.id);

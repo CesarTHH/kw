@@ -144,10 +144,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Nombres de las referencias (sector, tipo de servicio, servicio).
     const refs = cat.campos.filter((c) => c.tipo === "referencia" && c.referencia);
     const mapas = new Map<string, Map<string, string>>();
-    for (const r of refs) {
-      const { data: ops } = await supabase.from(r.referencia!.tabla).select(`id, nombre:${r.referencia!.columna}`);
-      mapas.set(r.nombre, new Map(((ops ?? []) as unknown as { id: string; nombre: string }[]).map((o) => [o.id, o.nombre])));
-    }
+    const opciones = await Promise.all(refs.map((r) => supabase.from(r.referencia!.tabla).select(`id, nombre:${r.referencia!.columna}`)));
+    refs.forEach((r, i) => {
+      const ops = (opciones[i]?.data ?? []) as unknown as { id: string; nombre: string }[];
+      mapas.set(r.nombre, new Map(ops.map((o) => [o.id, o.nombre])));
+    });
     const columnas: ColumnaCsv<Fila>[] = [
       ...cat.campos.map((c) => ({
         titulo: c.etiqueta,

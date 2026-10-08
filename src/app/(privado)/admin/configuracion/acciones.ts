@@ -52,14 +52,12 @@ export async function guardarHorarios(formData: FormData) {
     if (!igual(nuevo, r.valor)) cambios.push({ modulo: r.modulo, regla: r.regla, valor: nuevo });
   }
 
-  for (const c of cambios) {
-    const { error } = await supabase
-      .from("config_horarios")
-      .update({ valor: c.valor })
-      .eq("modulo", c.modulo)
-      .eq("regla", c.regla);
-    if (error) redirect(`${RUTA}?error=${claveError(error.code)}`);
-  }
+  // Todos los cambios a la vez (cada uno queda en la auditoría por separado).
+  const resultados = await Promise.all(
+    cambios.map((c) => supabase.from("config_horarios").update({ valor: c.valor }).eq("modulo", c.modulo).eq("regla", c.regla)),
+  );
+  const fallo = resultados.find((r) => r.error)?.error;
+  if (fallo) redirect(`${RUTA}?error=${claveError(fallo.code)}`);
   revalidatePath(RUTA);
   redirect(`${RUTA}?ok=guardado`);
 }
@@ -106,10 +104,9 @@ export async function guardarGeneral(formData: FormData) {
     if (!igual(valor, f.valor)) cambios.push({ clave: f.clave, valor });
   }
 
-  for (const c of cambios) {
-    const { error } = await supabase.from("configuracion").update({ valor: c.valor }).eq("clave", c.clave);
-    if (error) redirect(`${RUTA}?error=${claveError(error.code)}`);
-  }
+  const resultados = await Promise.all(cambios.map((c) => supabase.from("configuracion").update({ valor: c.valor }).eq("clave", c.clave)));
+  const fallo = resultados.find((r) => r.error)?.error;
+  if (fallo) redirect(`${RUTA}?error=${claveError(fallo.code)}`);
   revalidatePath(RUTA);
   redirect(`${RUTA}?ok=guardado`);
 }

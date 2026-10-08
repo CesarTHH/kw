@@ -107,7 +107,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<R
                 Limpiar filtros
               </Link>
               {exportar && (
-                <a href={urlCon(`${RUTA}/exportar`, lista)} className="btn-secundario inline-flex items-center gap-1">
+                <a href={urlCon(`${RUTA}/exportar`, lista)} className="btn-secundario">
                   <Download className="size-4" aria-hidden /> Exportar
                 </a>
               )}
