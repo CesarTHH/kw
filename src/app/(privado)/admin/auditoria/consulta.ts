@@ -22,6 +22,7 @@ type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
  * Consulta de auditoría con los filtros. El texto de usuario y de empresa se
  * convierte primero en una lista de ids (máximo 200 coincidencias de cada uno).
  * Devuelve null si un filtro de texto no coincide con nadie (resultado vacío).
+ * La consulta va dentro de un objeto: si se devolviera sola, el await la ejecutaría.
  */
 export async function consultaAuditoria(supabase: Cliente, f: FiltrosAuditoria, columnas: string, opciones?: { count?: "exact" }) {
   const [usuarios, empresas] = await Promise.all([
@@ -43,7 +44,7 @@ export async function consultaAuditoria(supabase: Cliente, f: FiltrosAuditoria, 
   if (f.accion) q = q.eq("accion", f.accion);
   if (f.desde) q = q.gte("en", `${f.desde}T00:00:00-05:00`);
   if (f.hasta) q = q.lte("en", `${f.hasta}T23:59:59.999-05:00`);
-  return q;
+  return { q };
 }
 
 /** Pide filas por id en tandas de 150 (la URL de cada pedido no puede ser muy larga). */

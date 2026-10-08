@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   if (consulta) {
     // PostgREST entrega como máximo 1000 filas por pedido: se piden por páginas.
     for (let desde = 0; desde < 20_000; desde += 1000) {
-      const { data, error } = await consulta.range(desde, desde + 999);
+      const { data, error } = await consulta.q.range(desde, desde + 999);
       if (error) return new NextResponse("Error al exportar", { status: 500 });
       const pagina = (data ?? []) as unknown as Fila[];
       filas.push(...pagina);

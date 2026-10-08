@@ -161,8 +161,6 @@ export async function analizar(
   };
   const frentesArchivo = new Map<string, Catalogos["frentes"][number]>();
 
-  // Orden: primero los maestros (en el orden de dependencias), al final el historial.
-  const orden = ["proyectos", "areas", "frentes", "empresas", "contactos", "comedores", "servicios", "historial"];
   const porTipo = new Map<string, Archivo>();
   for (const a of archivos) {
     const t = tipoArchivo(a.nombre);

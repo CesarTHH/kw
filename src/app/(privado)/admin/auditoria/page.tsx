@@ -42,7 +42,7 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<R
   const consulta = await consultaAuditoria(supabase, f, COLUMNAS_LISTA, { count: "exact" });
   const [ini, fin] = rango(p, 50);
   const [resultado, tiposR, detalleR, zona] = await Promise.all([
-    consulta ? consulta.range(ini, fin) : Promise.resolve({ data: [], count: 0 }),
+    consulta ? consulta.q.range(ini, fin) : Promise.resolve({ data: [], count: 0 }),
     supabase.rpc("auditoria_tipos"),
     idDetalle ? supabase.from("auditoria").select("*").eq("id", idDetalle).maybeSingle() : Promise.resolve({ data: null }),
     zonaHoraria(),
