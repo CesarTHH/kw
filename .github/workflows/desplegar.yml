@@ -1,0 +1,91 @@
+name: Desplegar a Cloud Run
+
+# Se publica solo cuando el CI de main terminó bien (lint, tipos, pruebas y RLS).
+# También se puede lanzar a mano desde la pestaña Actions ("Run workflow").
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Un despliegue a la vez; si llega otro, el anterior termina primero.
+concurrency:
+  group: despliegue-produccion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # Workload Identity Federation: sin llaves JSON guardadas en GitHub.
+
+env:
+  REGION: us-east4
+  SERVICIO: portal-raciones
+  REPOSITORIO: kw
+
+jobs:
+  desplegar:
+    name: Construir y publicar
+    # No corre hasta que se configure Google Cloud (variables del repositorio).
+    if: >-
+      vars.GCP_PROJECT_ID != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Autenticarse en Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SA_DESPLIEGUE }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Construir la imagen
+        run: |
+          IMAGEN="${REGION}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${REPOSITORIO}/${SERVICIO}:${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "IMAGEN=$IMAGEN" >> "$GITHUB_ENV"
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.NEXT_PUBLIC_SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}" \
+            --build-arg NEXT_PUBLIC_SITE_URL="${{ vars.NEXT_PUBLIC_SITE_URL }}" \
+            -t "$IMAGEN" .
+          docker push "$IMAGEN"
+
+      - name: Publicar en Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICIO }}
+          region: ${{ env.REGION }}
+          image: ${{ env.IMAGEN }}
+          # La clave secreta de Supabase vive en Secret Manager, nunca en GitHub.
+          secrets: |
+            SUPABASE_SECRET_KEY=supabase-secret-key:latest
+          env_vars: |
+            SES_SNS_TOPIC_ARN=${{ vars.SES_SNS_TOPIC_ARN }}
+          flags: >-
+            --service-account=${{ vars.GCP_SA_APP }}
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=4
+            --concurrency=40
+            --cpu=1
+            --memory=2Gi
+            --cpu-boost
+            --timeout=900
+            --execution-environment=gen2
+
+      - name: Verificar que responde
+        run: |
+          URL=$(gcloud run services describe "$SERVICIO" --region "$REGION" --format 'value(status.url)')
+          for i in 1 2 3 4 5; do
+            if curl -fsS "$URL/api/salud" | grep -q ok; then echo "La app responde en $URL"; exit 0; fi
+            sleep 5
+          done
+          echo "La app no respondió en $URL/api/salud" >&2
+          exit 1

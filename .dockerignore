@@ -1,0 +1,18 @@
+# Nada de esto entra a la imagen.
+.git
+.github
+node_modules
+.next
+.env*
+!.env.example
+*.csv
+*.xlsx
+*.docx
+*.pdf
+docs
+supabase/*
+!supabase/functions
+scripts
+tsconfig.tsbuildinfo
+Dockerfile
+.dockerignore

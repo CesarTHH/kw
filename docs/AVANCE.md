@@ -148,3 +148,11 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - Menos trabajo en el navegador: tablas y totales no se recalculan si no cambian.
 - Importador: descargas y firmas en paralelo; la lista solo trae lo que muestra.
 - **Diseño** (mismos colores y funciones): encabezado fijo con botones de inicio y salida centrados; menú principal en cuadrícula de 2 a 6 columnas; botones e íconos del mismo tamaño y centrados; campos de 40 px de alto (cómodos en el celular); tablas con desplazamiento horizontal en pantallas pequeñas; formularios en una columna en celulares; gráfico semanal y pestañas adaptados al celular.
+
+## Fase 8: publicación (preparada 08/10/2026)
+
+- Contenedor Docker de producción (sin código fuente ni datos, usuario sin privilegios) y ruta de salud `/api/salud`.
+- Flujo de GitHub Actions **Desplegar a Cloud Run**: se ejecuta solo cuando el CI de `main` pasa; se autentica con Workload Identity Federation.
+- Script `scripts/gcp-configurar.sh` para Cloud Shell: servicios, almacén de imágenes, cuentas de servicio, clave de Supabase en Secret Manager y conexión con GitHub.
+- Guía paso a paso en `docs/OPERACION.md` (Google Cloud, variables de GitHub, dominio en Cloudflare, Supabase, SES en producción, día a día).
+- Pendiente de la usuaria: crear el proyecto de Google Cloud y seguir la guía.
