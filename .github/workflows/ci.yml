@@ -39,3 +39,25 @@ jobs:
           version: latest
       - run: supabase start
       - run: supabase test db
+
+  contenedor:
+    name: Imagen Docker de producción
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir la imagen (sin publicar)
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 \
+            --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=clave-ficticia-para-compilar \
+            --build-arg NEXT_PUBLIC_SITE_URL=https://raciones.kunturwasi-catering.com \
+            -t portal-raciones:prueba .
+      - name: La imagen arranca y responde
+        run: |
+          docker run -d --name app -p 8080:8080 -e SUPABASE_SECRET_KEY=ficticia portal-raciones:prueba
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/api/salud | grep -q ok; then echo "Responde"; docker stop app >/dev/null; exit 0; fi
+            sleep 2
+          done
+          docker logs app
+          exit 1
