@@ -156,3 +156,9 @@ En el mensaje inicial del proyecto se compartió en texto plano la contraseña d
 - Script `scripts/gcp-configurar.sh` para Cloud Shell: servicios, almacén de imágenes, cuentas de servicio, clave de Supabase en Secret Manager y conexión con GitHub.
 - Guía paso a paso en `docs/OPERACION.md` (Google Cloud, variables de GitHub, dominio en Cloudflare, Supabase, SES en producción, día a día).
 - Pendiente de la usuaria: crear el proyecto de Google Cloud y seguir la guía.
+
+## Prueba de rendimiento con volumen real (09/10/2026)
+
+- Se cargó en una base local un volumen sintético igual al histórico (165 empresas, 27 000 envíos, 320 000 movimientos, 278 840 saldos) y se midieron las consultas principales con las reglas de seguridad activas (`supabase/rendimiento/`).
+- Hallazgo: las políticas RLS de raciones y refrigerios evaluaban una función por fila. Tablero del contratista: más de 300 s; consulta detallada: 3,3 s; tablero del superadmin: 5,6 s.
+- Corrección (migración `rendimiento_rls`): el perfil se calcula una vez por consulta. Resultado (mediana de 30 ejecuciones): tablero del contratista 50 ms, consulta detallada 8 ms, tablero del superadmin 16 ms (1 mes) y 39 ms (3 meses).
